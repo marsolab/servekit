@@ -321,6 +321,11 @@ func (l *ListenerHTTP) Serve(ctx context.Context) error {
 				slog.String("address", l.server.Addr),
 			)
 			return err
+		} else {
+			l.logger.Error("Listener failed to serve",
+				slog.String("address", l.server.Addr),
+				slog.String("error", err.Error()),
+			)
 		}
 
 		l.logger.Error("Listener failed to serve",
