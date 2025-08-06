@@ -184,7 +184,7 @@ func (l *ListenerGRPC) handleShutdown(ctx context.Context) error {
 		return fmt.Errorf("%w: %s", servekit.ErrGracefullyShutdown, err.Error())
 	}
 
-	return servekit.ErrGracefullyShutdown
+	return nil
 }
 
 func applyOptionsGRPC(options ...Option[ListenerConfig]) ListenerConfig {
