@@ -12,8 +12,8 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/marsolab/servekit/errkit"
 	"github.com/oklog/ulid/v2"
-	"github.com/plainq/servekit/errkit"
 	"github.com/rs/xid"
 )
 

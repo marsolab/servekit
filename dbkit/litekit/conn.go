@@ -16,8 +16,8 @@ import (
 	"github.com/benbjohnson/litestream/file"
 	"github.com/benbjohnson/litestream/s3"
 	"github.com/heartwilltell/hc"
+	"github.com/marsolab/servekit/logkit"
 	_ "github.com/mattn/go-sqlite3" // sqlite3 driver is required by the litestream.
-	"github.com/plainq/servekit/logkit"
 )
 
 // Compilation time check that Conn implements the hc.HealthChecker.

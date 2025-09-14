@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/metrics"
-	"github.com/plainq/servekit/ctxkit"
+	"github.com/marsolab/servekit/ctxkit"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/status"
 )

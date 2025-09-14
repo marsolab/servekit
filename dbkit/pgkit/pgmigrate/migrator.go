@@ -8,7 +8,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/tern/v2/migrate"
-	"github.com/plainq/servekit/dbkit/pgkit"
+	"github.com/marsolab/servekit/dbkit/pgkit"
 )
 
 // New returns a pointer to a new instance of Migrator.
