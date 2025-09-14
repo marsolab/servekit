@@ -1,31 +1,29 @@
-module github.com/plainq/servekit
+module github.com/marsolab/servekit
 
-go 1.24.0
-
-toolchain go1.24.2
+go 1.25.0
 
 require (
-	github.com/VictoriaMetrics/metrics v1.39.1
+	github.com/VictoriaMetrics/metrics v1.40.1
 	github.com/benbjohnson/litestream v0.3.13
 	github.com/cristalhq/jwt/v5 v5.4.0
 	github.com/getsentry/sentry-go v0.35.2
-	github.com/go-chi/chi/v5 v5.2.2
+	github.com/go-chi/chi/v5 v5.2.3
 	github.com/go-chi/cors v1.2.2
 	github.com/heartwilltell/hc v0.2.2
 	github.com/jackc/pgconn v1.14.3
-	github.com/jackc/pgx/v5 v5.7.5
+	github.com/jackc/pgx/v5 v5.7.6
 	github.com/jackc/tern/v2 v2.3.3
 	github.com/lmittmann/tint v1.1.2
 	github.com/mattn/go-sqlite3 v1.14.32
 	github.com/maxatome/go-testdeep v1.14.0
 	github.com/oklog/ulid/v2 v2.1.1
 	github.com/redis/go-redis/v9 v9.14.0
-	github.com/resend/resend-go/v2 v2.22.0
+	github.com/resend/resend-go/v2 v2.23.0
 	github.com/rs/xid v1.6.0
 	go.mongodb.org/mongo-driver v1.17.4
 	golang.org/x/crypto v0.42.0
 	golang.org/x/sync v0.17.0
-	google.golang.org/grpc v1.74.2
+	google.golang.org/grpc v1.75.1
 )
 
 require (
