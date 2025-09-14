@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/plainq/servekit/ctxkit"
-	"github.com/plainq/servekit/errkit"
+	"github.com/marsolab/servekit/ctxkit"
+	"github.com/marsolab/servekit/errkit"
 )
 
 var (

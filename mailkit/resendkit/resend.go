@@ -6,7 +6,7 @@ import (
 	"maps"
 	"slices"
 
-	"github.com/plainq/servekit/mailkit"
+	"github.com/marsolab/servekit/mailkit"
 	"github.com/resend/resend-go/v2"
 )
 

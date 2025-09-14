@@ -6,7 +6,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/plainq/servekit/errkit"
+	"github.com/marsolab/servekit/errkit"
 )
 
 func TestULID(t *testing.T) {

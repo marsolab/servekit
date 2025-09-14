@@ -10,7 +10,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
-	"github.com/plainq/servekit/ctxkit"
+	"github.com/marsolab/servekit/ctxkit"
 )
 
 // Middleware represents a function type that serves as a middleware in an HTTP server.
