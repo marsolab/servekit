@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/maxatome/go-testdeep/td"
-	"github.com/plainq/servekit/authkit/hashkit"
-	"github.com/plainq/servekit/errkit"
+	"github.com/marsolab/servekit/authkit/hashkit"
+	"github.com/marsolab/servekit/errkit"
 	"golang.org/x/crypto/bcrypt"
 )
 

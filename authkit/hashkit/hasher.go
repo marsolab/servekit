@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/plainq/servekit/errkit"
+	"github.com/marsolab/servekit/errkit"
 	"golang.org/x/crypto/bcrypt"
 )
 

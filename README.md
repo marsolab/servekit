@@ -6,7 +6,7 @@ Is a set of well-tested (or not well 🤭) reusable components to speedup day-to
 
 ## Docs
 
-The code should be very straightforward to read, but you always can check the [go docs](https://pkg.go.dev/github.com/plainq/servekit).
+The code should be very straightforward to read, but you always can check the [go docs](https://pkg.go.dev/github.com/marsolab/servekit).
 
 ## Packages
 

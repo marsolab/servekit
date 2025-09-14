@@ -10,7 +10,7 @@ import (
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/plainq/servekit/errkit"
+	"github.com/marsolab/servekit/errkit"
 )
 
 // Compilation time check that Conn implements

@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/cristalhq/jwt/v5"
-	"github.com/plainq/servekit/errkit"
+	"github.com/marsolab/servekit/errkit"
 )
 
 // TokenManager is an interface that holds the logic of token management.

@@ -3,7 +3,7 @@ name: Pull Request
 on:
   pull_request:
     paths-ignore:
-      - '.github/workflows/pr.yml'
+      - ".github/workflows/pr.yml"
     branches:
       - main
 
@@ -17,7 +17,7 @@ jobs:
           node-version: 18
       - uses: actions/setup-go@v5
         with:
-          go-version: '^1.24'
+          go-version: "^1.25"
 
       - name: go test
         run: go test -race -cover ./...
@@ -31,7 +31,7 @@ jobs:
           node-version: 18
       - uses: actions/setup-go@v5
         with:
-          go-version: '^1.24'
+          go-version: "^1.25"
 
       - name: golangci-lint run
         uses: golangci/golangci-lint-action@v7

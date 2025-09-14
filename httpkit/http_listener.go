@@ -16,11 +16,11 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/heartwilltell/hc"
-	"github.com/plainq/servekit"
-	"github.com/plainq/servekit/ctxkit"
-	"github.com/plainq/servekit/httpkit/statuspage"
-	"github.com/plainq/servekit/logkit"
-	"github.com/plainq/servekit/tern"
+	"github.com/marsolab/servekit"
+	"github.com/marsolab/servekit/ctxkit"
+	"github.com/marsolab/servekit/httpkit/statuspage"
+	"github.com/marsolab/servekit/logkit"
+	"github.com/marsolab/servekit/tern"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -320,6 +320,7 @@ func (l *ListenerHTTP) Serve(ctx context.Context) error {
 			l.logger.Info("HTTP listener gracefully shut down",
 				slog.String("address", l.server.Addr),
 			)
+
 			return err
 		}
 
@@ -453,6 +454,7 @@ func (l *ListenerHTTP) handleShutdown(ctx context.Context) error {
 			slog.String("error", err.Error()),
 			slog.Duration("timeout", shutdownTimeout),
 		)
+
 		return fmt.Errorf("%w: %v", servekit.ErrGracefullyShutdown, err)
 	}
 
@@ -460,7 +462,7 @@ func (l *ListenerHTTP) handleShutdown(ctx context.Context) error {
 		slog.String("address", l.server.Addr),
 	)
 
-	return servekit.ErrGracefullyShutdown
+	return nil
 }
 
 // ListenerConfig holds ListenerHTTP configuration.
