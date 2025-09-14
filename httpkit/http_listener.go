@@ -316,20 +316,7 @@ func (l *ListenerHTTP) Serve(ctx context.Context) error {
 	})
 
 	if err := g.Wait(); err != nil {
-		if errors.Is(err, servekit.ErrGracefullyShutdown) {
-			l.logger.Info("HTTP listener gracefully shut down",
-				slog.String("address", l.server.Addr),
-			)
-
-			return err
-		} else {
-			l.logger.Error("Listener failed to serve",
-				slog.String("address", l.server.Addr),
-				slog.String("error", err.Error()),
-			)
-		}
-
-		l.logger.Error("Listener failed to serve",
+		l.logger.Error("HTTP listener failed to serve",
 			slog.String("address", l.server.Addr),
 			slog.String("error", err.Error()),
 		)
@@ -460,7 +447,7 @@ func (l *ListenerHTTP) handleShutdown(ctx context.Context) error {
 			slog.Duration("timeout", shutdownTimeout),
 		)
 
-		return fmt.Errorf("%w: %v", servekit.ErrGracefullyShutdown, err)
+		return fmt.Errorf("%w failed: %v", servekit.ErrGracefullyShutdown, err)
 	}
 
 	l.logger.Info("HTTP server gracefully stopped",
