@@ -8,8 +8,8 @@ import (
 	"net"
 	"time"
 
-	"github.com/plainq/servekit"
-	"github.com/plainq/servekit/logkit"
+	"github.com/marsolab/servekit"
+	"github.com/marsolab/servekit/logkit"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 )

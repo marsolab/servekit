@@ -14,8 +14,8 @@ import (
 
 	"github.com/cristalhq/jwt/v5"
 	"github.com/maxatome/go-testdeep/td"
-	"github.com/plainq/servekit/authkit/jwtkit"
-	"github.com/plainq/servekit/idkit"
+	"github.com/marsolab/servekit/authkit/jwtkit"
+	"github.com/marsolab/servekit/idkit"
 )
 
 func TestJWKSProvider(t *testing.T) {

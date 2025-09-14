@@ -8,7 +8,7 @@ import (
 	"math/rand/v2"
 	"time"
 
-	"github.com/plainq/servekit/tern"
+	"github.com/marsolab/servekit/tern"
 )
 
 const (

@@ -15,7 +15,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/plainq/servekit/retry"
+	"github.com/marsolab/servekit/retry"
 )
 
 const (

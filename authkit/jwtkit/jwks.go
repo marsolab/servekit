@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/cristalhq/jwt/v5"
-	"github.com/plainq/servekit/errkit"
+	"github.com/marsolab/servekit/errkit"
 )
 
 // Key represents a single key in a JWK set.

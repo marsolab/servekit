@@ -5,8 +5,8 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/plainq/servekit/ctxkit"
-	"github.com/plainq/servekit/errkit"
+	"github.com/marsolab/servekit/ctxkit"
+	"github.com/marsolab/servekit/errkit"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
