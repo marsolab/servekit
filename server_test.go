@@ -20,7 +20,7 @@ func (m *mockListener) Serve(ctx context.Context) error {
 		return m.serveFunc(ctx)
 	}
 	<-ctx.Done()
-	return ErrGracefullyShutdown
+	return nil
 }
 
 func TestServer_GracefulShutdown(t *testing.T) {
@@ -32,7 +32,7 @@ func TestServer_GracefulShutdown(t *testing.T) {
 		name: "test-listener",
 		serveFunc: func(ctx context.Context) error {
 			<-ctx.Done()
-			return ErrGracefullyShutdown
+			return nil
 		},
 	}
 	server.RegisterListener("test-listener", mockListener)
@@ -95,7 +95,7 @@ func TestServer_MultipleListeners(t *testing.T) {
 		listener := &mockListener{
 			serveFunc: func(ctx context.Context) error {
 				<-ctx.Done()
-				return ErrGracefullyShutdown
+				return nil
 			},
 		}
 		server.RegisterListener(fmt.Sprintf("listener-%d", i), listener)
@@ -130,7 +130,7 @@ func TestServer_ShutdownMethod(t *testing.T) {
 	mockListener := &mockListener{
 		serveFunc: func(ctx context.Context) error {
 			<-ctx.Done()
-			return ErrGracefullyShutdown
+			return nil
 		},
 	}
 	server.RegisterListener("test-listener", mockListener)
