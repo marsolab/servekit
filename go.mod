@@ -3,7 +3,7 @@ module github.com/marsolab/servekit
 go 1.25.0
 
 require (
-	github.com/VictoriaMetrics/metrics v1.40.1
+	github.com/VictoriaMetrics/metrics v1.40.2
 	github.com/benbjohnson/litestream v0.3.13
 	github.com/cristalhq/jwt/v5 v5.4.0
 	github.com/getsentry/sentry-go v0.35.2
