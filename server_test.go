@@ -27,7 +27,7 @@ func TestServer_GracefulShutdown(t *testing.T) {
 	logger := slog.Default()
 	server := NewServer(logger)
 
-	// Add a mock listener that responds to context cancellation
+	// Add a mock listener that responds to context cancellation.
 	mockListener := &mockListener{
 		name: "test-listener",
 		serveFunc: func(ctx context.Context) error {
@@ -35,9 +35,10 @@ func TestServer_GracefulShutdown(t *testing.T) {
 			return nil
 		},
 	}
+
 	server.RegisterListener("test-listener", mockListener)
 
-	// Test graceful shutdown
+	// Test graceful shutdown.
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 

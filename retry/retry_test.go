@@ -1,156 +1,112 @@
 package retry
 
 import (
-	"reflect"
 	"testing"
 	"time"
+
+	"github.com/maxatome/go-testdeep/td"
 )
 
 func TestNewConstantBackoff(t *testing.T) {
-	want := &ConstantBackoff{
-		minBackoffInterval: float64(50),
-		maxBackoffInterval: float64(time.Second / time.Millisecond),
-		maxJitterInterval:  float64(50),
-	}
+	td.NewT(t)
 
-	if got := NewConstantBackoff(50*time.Millisecond, time.Second, 50*time.Millisecond); !reflect.DeepEqual(got, want) {
-		t.Errorf("NewConstantBackoff() = %v, want %v", got, want)
-	}
+	got := NewConstantBackoff(50*time.Millisecond, time.Second, 50*time.Millisecond)
+	td.Cmp(t, got, td.Struct(&ConstantBackoff{}, td.StructFields{
+		"minBackoffInterval": float64(50),
+		"maxBackoffInterval": float64(time.Second / time.Millisecond),
+		"maxJitterInterval":  float64(50),
+	}))
 
-	var _ Backoff = want
+	var _ Backoff = got
 }
 
 func Test_constantBackoff_Next(t *testing.T) {
+	td.NewT(t)
+
 	backoff := NewConstantBackoff(50*time.Millisecond, time.Second, 50*time.Millisecond)
+	result := backoff.Next(1)
 
-	want := backoff.Next(1)
-
-	if want < 50*time.Millisecond {
-		t.Errorf("backoff := %v snould not be less than %v ", want, 50*time.Millisecond)
-	}
-
-	if want > time.Second+50*time.Millisecond {
-		t.Errorf("backoff := %v snould not be greater than %v", want, time.Second)
-	}
+	td.Cmp(t, result, td.Gte(50*time.Millisecond))
+	td.Cmp(t, result, td.Lte(time.Second+50*time.Millisecond))
 }
 
 func TestNewLinearBackoff(t *testing.T) {
-	want := &LinearBackoff{
-		minBackoffInterval: float64(50),
-		maxBackoffInterval: float64(time.Second / time.Millisecond),
-		maxJitterInterval:  float64(50),
-	}
+	td.NewT(t)
 
-	if got := NewLinearBackoff(50*time.Millisecond, time.Second, 50*time.Millisecond); !reflect.DeepEqual(got, want) {
-		t.Errorf("NewLinearBackoff() = %v, want %v", got, want)
-	}
+	got := NewLinearBackoff(50*time.Millisecond, time.Second, 50*time.Millisecond)
+	td.Cmp(t, got, td.Struct(&LinearBackoff{}, td.StructFields{
+		"minBackoffInterval": float64(50),
+		"maxBackoffInterval": float64(time.Second / time.Millisecond),
+		"maxJitterInterval":  float64(50),
+	}))
 
-	var _ Backoff = want
+	var _ Backoff = got
 }
 
 func Test_linearBackoff_Next(t *testing.T) {
+	td.NewT(t)
+
 	backoff := NewLinearBackoff(50*time.Millisecond, time.Second, 50*time.Millisecond)
 
 	t.Run("1 Retry", func(t *testing.T) {
-		want := backoff.Next(1)
-
-		if want < 50*time.Millisecond {
-			t.Errorf("backoff := %v snould not be less than %v ", want, 50*time.Millisecond)
-		}
-
-		if want > time.Second+50*time.Millisecond {
-			t.Errorf("backoff := %v snould not be greater than %v", want, time.Second)
-		}
+		result := backoff.Next(1)
+		td.Cmp(t, result, td.Gte(50*time.Millisecond))
+		td.Cmp(t, result, td.Lte(time.Second+50*time.Millisecond))
 	})
 
 	t.Run("2 Retry", func(t *testing.T) {
-		want := backoff.Next(2)
-
-		if want < 50*time.Millisecond {
-			t.Errorf("backoff := %v snould not be less than %v ", want, 50*time.Millisecond)
-		}
-
-		if want > time.Second+50*time.Millisecond {
-			t.Errorf("backoff := %v snould not be greater than %v", want, time.Second)
-		}
+		result := backoff.Next(2)
+		td.Cmp(t, result, td.Gte(50*time.Millisecond))
+		td.Cmp(t, result, td.Lte(time.Second+50*time.Millisecond))
 	})
 
 	t.Run("3 Retry", func(t *testing.T) {
-		want := backoff.Next(3)
-
-		if want < 50*time.Millisecond {
-			t.Errorf("backoff := %v snould not be less than %v ", want, 50*time.Millisecond)
-		}
-
-		if want > time.Second+50*time.Millisecond {
-			t.Errorf("backoff := %v snould not be greater than %v", want, time.Second)
-		}
+		result := backoff.Next(3)
+		td.Cmp(t, result, td.Gte(50*time.Millisecond))
+		td.Cmp(t, result, td.Lte(time.Second+50*time.Millisecond))
 	})
 }
 
 func TestNewExponentialBackoff(t *testing.T) {
-	want := &ExponentialBackoff{
-		exponentialFactor:  2,
-		minBackoffInterval: float64(50),
-		maxBackoffInterval: float64(time.Second / time.Millisecond),
-		maxJitterInterval:  float64(50),
-	}
+	td.NewT(t)
 
-	if got := NewExponentialBackoff(2, 50*time.Millisecond, time.Second, 50*time.Millisecond); !reflect.DeepEqual(got, want) {
-		t.Errorf("NewExponentialBackoff() = %v, want %v", got, want)
-	}
+	got := NewExponentialBackoff(2, 50*time.Millisecond, time.Second, 50*time.Millisecond)
+	td.Cmp(t, got, td.Struct(&ExponentialBackoff{}, td.StructFields{
+		"exponentialFactor":  float64(2),
+		"minBackoffInterval": float64(50),
+		"maxBackoffInterval": float64(time.Second / time.Millisecond),
+		"maxJitterInterval":  float64(50),
+	}))
 
-	var _ Backoff = want
+	var _ Backoff = got
 }
 
 func Test_exponentialBackoff_Next(t *testing.T) {
+	td.NewT(t)
+
 	backoff := NewExponentialBackoff(2, 50*time.Millisecond, time.Second, 50*time.Millisecond)
 
 	t.Run("1 Retry", func(t *testing.T) {
-		want := backoff.Next(1)
-
-		if want < 50*time.Millisecond {
-			t.Errorf("backoff := %v snould not be less than %v ", want, 50*time.Millisecond)
-		}
-
-		if want > time.Second+50*time.Millisecond {
-			t.Errorf("backoff := %v snould not be greater than %v", want, time.Second)
-		}
+		result := backoff.Next(1)
+		td.Cmp(t, result, td.Gte(50*time.Millisecond))
+		td.Cmp(t, result, td.Lte(time.Second+50*time.Millisecond))
 	})
 
 	t.Run("2 Retry", func(t *testing.T) {
-		want := backoff.Next(2)
-
-		if want < 50*time.Millisecond {
-			t.Errorf("backoff := %v snould not be less than %v ", want, 50*time.Millisecond)
-		}
-
-		if want > time.Second+50*time.Millisecond {
-			t.Errorf("backoff := %v snould not be greater than %v", want, time.Second)
-		}
+		result := backoff.Next(2)
+		td.Cmp(t, result, td.Gte(50*time.Millisecond))
+		td.Cmp(t, result, td.Lte(time.Second+50*time.Millisecond))
 	})
 
 	t.Run("3 Retry", func(t *testing.T) {
-		want := backoff.Next(3)
-
-		if want < 50*time.Millisecond {
-			t.Errorf("backoff := %v snould not be less than %v ", want, 50*time.Millisecond)
-		}
-
-		if want > time.Second+50*time.Millisecond {
-			t.Errorf("backoff := %v snould not be greater than %v", want, time.Second)
-		}
+		result := backoff.Next(3)
+		td.Cmp(t, result, td.Gte(50*time.Millisecond))
+		td.Cmp(t, result, td.Lte(time.Second+50*time.Millisecond))
 	})
 
 	t.Run("10 retry", func(t *testing.T) {
-		want := backoff.Next(10)
-
-		if want < 50*time.Millisecond {
-			t.Errorf("backoff := %v snould not be less than %v ", want, 50*time.Millisecond)
-		}
-
-		if want > time.Second+50*time.Millisecond {
-			t.Errorf("backoff := %v snould not be greater than %v", want, time.Second)
-		}
+		result := backoff.Next(10)
+		td.Cmp(t, result, td.Gte(50*time.Millisecond))
+		td.Cmp(t, result, td.Lte(time.Second+50*time.Millisecond))
 	})
 }

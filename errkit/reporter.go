@@ -27,6 +27,7 @@ func RegisterReporter(r ErrorReporter) error {
 	return nil
 }
 
+// Report reports about error.
 func Report(err error) {
 	if reporter == nil {
 		return

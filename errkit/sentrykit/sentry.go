@@ -10,9 +10,11 @@ import (
 	"github.com/marsolab/servekit/errkit"
 )
 
+
 var (
-	initClient sync.Once
-	initErr    error
+	//nolint:gochecknoglobals
+	initClient sync.Once 
+	errInit    error
 )
 
 const (
@@ -73,15 +75,15 @@ func Init(dsn string, options ...Option) error {
 		}
 
 		if err := sentry.Init(o); err != nil {
-			initErr = fmt.Errorf("sentry: client initialization: %w", err)
+			errInit = fmt.Errorf("sentry: client initialization: %w", err)
 		}
 
 		if err := errkit.RegisterReporter(reporter{}); err != nil {
-			initErr = fmt.Errorf("sentry: client registration: %w", err)
+			errInit = fmt.Errorf("sentry: client registration: %w", err)
 		}
 	})
 
-	return initErr
+	return errInit
 }
 
 func Close() error {

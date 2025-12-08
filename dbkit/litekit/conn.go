@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -121,7 +120,7 @@ func JournalModeFromString(mode string) (JournalMode, error) {
 		return Truncate, nil
 
 	default:
-		return Delete, fmt.Errorf("%w: %q", ErrUnsupportedAccessMode, mode)
+		return Delete, fmt.Errorf("%w: %q", ErrUnsupportedJournalMode, mode)
 	}
 }
 
@@ -274,7 +273,7 @@ type Conn struct {
 	journalingMode JournalMode
 
 	backup               bool
-	backupCloser         io.Closer
+	backupDB             *litestream.DB
 	backupTo             To
 	backupS3             S3BackupConfig
 	backupFile           FileBackupConfig
@@ -343,9 +342,12 @@ func (c *Conn) Health(ctx context.Context) error {
 }
 
 func (c *Conn) Close() (closeErr error) {
-	if c.backup && c.backupCloser != nil {
-		if err := c.backupCloser.Close(); err != nil {
-			closeErr = errors.Join(closeErr, fmt.Errorf("close backup file: %w", err))
+	if c.backup && c.backupDB != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		if err := c.backupDB.Close(ctx); err != nil {
+			closeErr = errors.Join(closeErr, fmt.Errorf("close backup database: %w", err))
 		}
 	}
 
@@ -398,10 +400,10 @@ func (c *Conn) configureBackups() error {
 		return fmt.Errorf("unknown backup destination type: %q", c.backupTo)
 	}
 
-	lsr := litestream.NewReplica(lsdb, "main")
+	lsr := litestream.NewReplica(lsdb)
 	lsr.Client = rc
 
-	lsdb.Replicas = append(lsdb.Replicas, lsr)
+	lsdb.Replica = lsr
 
 	c.logger.Debug("Replica has been attached to litestream")
 
@@ -416,7 +418,7 @@ func (c *Conn) configureBackups() error {
 		return fmt.Errorf("open database for replication: %w", err)
 	}
 
-	c.backupCloser = lsdb
+	c.backupDB = lsdb
 
 	return nil
 }
@@ -434,24 +436,21 @@ func (c *Conn) restoreBackup(ctx context.Context, replica *litestream.Replica) e
 	opt := litestream.NewRestoreOptions()
 	opt.OutputPath = replica.DB().Path()
 
-	// Determine the latest generation to restore from.
-	gen, updatedAt, restoreErr := replica.CalcRestoreTarget(ctx, opt)
+	// Determine the latest restore target time.
+	updatedAt, restoreErr := replica.CalcRestoreTarget(ctx, opt)
 	if restoreErr != nil {
 		return fmt.Errorf("calculate restore target: %w", restoreErr)
 	}
 
-	opt.Generation = gen
-
-	// Only restore if there is a generation available on the replica.
+	// Only restore if there is a backup available on the replica.
 	// Otherwise, we'll let the application create a new database.
-	if opt.Generation == "" {
-		c.logger.Debug("No generation found, creating new database")
+	if updatedAt.IsZero() {
+		c.logger.Debug("No backup found, creating new database")
 
 		return nil
 	}
 
-	c.logger.Debug("Restoring replica for generation",
-		slog.String("generation", opt.Generation),
+	c.logger.Debug("Restoring replica",
 		slog.Time("updatedAt", updatedAt),
 	)
 
