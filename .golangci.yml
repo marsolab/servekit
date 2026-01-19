@@ -3,6 +3,20 @@ run:
   go: "1.25"
   tests: false # include test files or not, default is true.
 
+formatters:
+  enable:
+    - gofmt
+    - goimports
+    - golines
+  settings:
+    gofmt:
+      simplify: true
+      rewrite-rules:
+        - pattern: "interface{}"
+          replacement: "any"
+    golines:
+      max-len: 140
+
 linters:
   default: none
   enable:
@@ -194,7 +208,6 @@ linters:
       # Default: 50
       statements: 50
 
-
     gocognit:
       # Minimal complexity of a function.
       # Default: 30
@@ -217,7 +230,6 @@ linters:
       # Whether to check exported functions.
       # Default: false
       check-exported: false
-
 
     gomoddirectives:
       # Whether to check for replace directives with local paths.
@@ -985,42 +997,6 @@ linters:
       - common-false-positives
       - legacy
       - std-error-handling
-    paths:
-      - third_party$
-      - builtin$
-      - examples$
-
-# Formatters configuration.
-formatters:
-  enable:
-    # - gci # Checks if code and import statements are formatted, with additional rules.
-    - gofmt # Checks if the code is formatted according to 'gofmt' command.
-    # - gofumpt # Checks if code and import statements are formatted, with additional rules.
-    - goimports # Checks if the code and import statements are formatted according to the 'goimports' command.
-    - golines # Checks if code is formatted, and fixes long lines.
-  settings:
-    gci:
-      # Sections specifies the order of import sections.
-      # Default: ["standard", "default", "blank", "dot"]
-      sections:
-        - standard
-        - default
-        - blank
-        - dot
-      # Custom order of sections.
-      # Default: false
-      custom-order: false
-
-    golines:
-      # Maximum line length.
-      # Default: 120
-      max-len: 120
-      # Reformat comments.
-      # Default: true
-      reformat-tags: true
-
-  exclusions:
-    generated: lax
     paths:
       - third_party$
       - builtin$

@@ -3,9 +3,9 @@ package hashkit_test
 import (
 	"testing"
 
-	"github.com/maxatome/go-testdeep/td"
 	"github.com/marsolab/servekit/authkit/hashkit"
 	"github.com/marsolab/servekit/errkit"
+	"github.com/maxatome/go-testdeep/td"
 	"golang.org/x/crypto/bcrypt"
 )
 

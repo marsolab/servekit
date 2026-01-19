@@ -5,10 +5,10 @@ import (
 	"time"
 
 	"github.com/cristalhq/jwt/v5"
-	"github.com/maxatome/go-testdeep/td"
 	"github.com/marsolab/servekit/authkit/jwtkit"
 	"github.com/marsolab/servekit/errkit"
 	"github.com/marsolab/servekit/idkit"
+	"github.com/maxatome/go-testdeep/td"
 )
 
 func TestTokenManagerJWT(t *testing.T) {
