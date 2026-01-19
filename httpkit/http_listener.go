@@ -225,6 +225,7 @@ func WithProfiler(cfg PPROFConfig) ListenerOption[ListenerConfig] {
 	}
 }
 
+// ListenerHTTP is the HTTP listener implementation for the servekit.Listener interface.
 type ListenerHTTP struct {
 	enableTLS bool
 	cert, key string
@@ -256,7 +257,14 @@ func NewListenerHTTP(addr string, options ...ListenerOption[ListenerConfig]) (*L
 	// Set listener logger.
 	l.logger = cfg.logger
 
-	if l.enableTLS {
+	// Apply HTTP server timeouts.
+	l.server.ReadTimeout = cfg.timeouts.readTimeout
+	l.server.ReadHeaderTimeout = cfg.timeouts.readHeaderTimeout
+	l.server.WriteTimeout = cfg.timeouts.writeTimeout
+	l.server.IdleTimeout = cfg.timeouts.idleTimeout
+
+	// Configure TLS if certificate and key paths are provided.
+	if cfg.cert != "" || cfg.key != "" {
 		if err := l.configureTLS(cfg); err != nil {
 			return nil, fmt.Errorf("configure TLS: %w", err)
 		}
@@ -441,13 +449,24 @@ func (l *ListenerHTTP) handleShutdown(ctx context.Context) error {
 	defer cancel()
 
 	if err := l.server.Shutdown(shutdownCtx); err != nil {
-		l.logger.Error("Failed to shutdown HTTP listener gracefully",
+		l.logger.Warn("HTTP server graceful shutdown timeout exceeded, forcing close",
 			slog.String("address", l.server.Addr),
-			slog.String("error", err.Error()),
 			slog.Duration("timeout", shutdownTimeout),
 		)
 
-		return fmt.Errorf("%w failed: %v", servekit.ErrGracefullyShutdown, err)
+		if closeErr := l.server.Close(); closeErr != nil {
+			l.logger.Error("Failed to force close HTTP listener",
+				slog.String("address", l.server.Addr),
+				slog.String("error", closeErr.Error()),
+			)
+		}
+
+		l.logger.Error("Failed to shutdown HTTP listener gracefully",
+			slog.String("address", l.server.Addr),
+			slog.String("error", err.Error()),
+		)
+
+		return fmt.Errorf("%w failed, forced stop: %w", servekit.ErrGracefullyShutdown, err)
 	}
 
 	l.logger.Info("HTTP server gracefully stopped",

@@ -1,6 +1,7 @@
 package httpkit
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -35,10 +36,10 @@ var (
 			statusCode = http.StatusNotFound
 
 		case errors.Is(err, errkit.ErrUnauthenticated):
-			statusCode = http.StatusForbidden
+			statusCode = http.StatusUnauthorized
 
 		case errors.Is(err, errkit.ErrUnauthorized):
-			statusCode = http.StatusUnauthorized
+			statusCode = http.StatusForbidden
 
 		case errors.Is(err, errkit.ErrInvalidArgument):
 			statusCode = http.StatusBadRequest
@@ -156,11 +157,11 @@ func Status(w http.ResponseWriter, _ *http.Request, statusCode int, options ...R
 func JSON(w http.ResponseWriter, r *http.Request, v any, options ...ResponseOption) {
 	o := NewResponseOptions(w, options...)
 
-	coder := json.NewEncoder(w)
-	coder.SetEscapeHTML(true)
+	// Buffer the JSON first to detect encoding errors before writing headers.
+	var buf bytes.Buffer
 
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(o.statusCode)
+	coder := json.NewEncoder(&buf)
+	coder.SetEscapeHTML(true)
 
 	if err := coder.Encode(v); err != nil {
 		// Get log hook from the context to set an error which
@@ -170,10 +171,22 @@ func JSON(w http.ResponseWriter, r *http.Request, v any, options ...ResponseOpti
 		}
 
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(o.statusCode)
+
+	// Write errors after headers are sent can only be logged, not recovered.
+	if _, err := w.Write(buf.Bytes()); err != nil {
+		if hook := ctxkit.GetLogErrHook(r.Context()); hook != nil {
+			hook(err)
+		}
 	}
 }
 
-// HTML tries to encode v into json representation and write it to response writer.
+// HTML writes HTML content to the response writer.
 func HTML(w http.ResponseWriter, r *http.Request, v []byte, options ...ResponseOption) {
 	o := NewResponseOptions(w, options...)
 
@@ -185,18 +198,15 @@ func HTML(w http.ResponseWriter, r *http.Request, v []byte, options ...ResponseO
 		return
 	}
 
+	// Write errors after headers are sent can only be logged, not recovered.
 	if _, err := w.Write(v); err != nil {
-		// Get log hook from the context to set an error which
-		// will be logged along with access log line.
 		if hook := ctxkit.GetLogErrHook(r.Context()); hook != nil {
 			hook(err)
 		}
-
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 	}
 }
 
-// TEXT tries to write v to response writer.
+// TEXT writes plain text content to the response writer.
 func TEXT(w http.ResponseWriter, r *http.Request, v []byte, options ...ResponseOption) {
 	o := NewResponseOptions(w, options...)
 
@@ -208,14 +218,11 @@ func TEXT(w http.ResponseWriter, r *http.Request, v []byte, options ...ResponseO
 		return
 	}
 
+	// Write errors after headers are sent can only be logged, not recovered.
 	if _, err := w.Write(v); err != nil {
-		// Get log hook from the context to set an error which
-		// will be logged along with access log line.
 		if hook := ctxkit.GetLogErrHook(r.Context()); hook != nil {
 			hook(err)
 		}
-
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 	}
 }
 
@@ -242,28 +249,38 @@ func TemplateHTML( //nolint:revive // argument-limit is acceptable here.
 ) {
 	o := NewResponseOptions(w, options...)
 
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.WriteHeader(o.statusCode)
-
+	// Get the template first.
 	templ, err := htmlTemplater.Template(r.Context(), name)
 	if err != nil {
 		if hook := ctxkit.GetLogErrHook(r.Context()); hook != nil {
 			hook(err)
 		}
 
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 
 		return
 	}
 
-	if err := templ.Execute(w, v); err != nil {
-		// Get log hook from the context to set an error which
-		// will be logged along with access log line.
+	// Buffer the template output to detect execution errors before writing headers.
+	var buf bytes.Buffer
+	if err := templ.Execute(&buf, v); err != nil {
 		if hook := ctxkit.GetLogErrHook(r.Context()); hook != nil {
 			hook(err)
 		}
 
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(o.statusCode)
+
+	// Write errors after headers are sent can only be logged, not recovered.
+	if _, err := w.Write(buf.Bytes()); err != nil {
+		if hook := ctxkit.GetLogErrHook(r.Context()); hook != nil {
+			hook(err)
+		}
 	}
 }
 
