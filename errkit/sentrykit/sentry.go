@@ -10,10 +10,9 @@ import (
 	"github.com/marsolab/servekit/errkit"
 )
 
-
 var (
 	//nolint:gochecknoglobals
-	initClient sync.Once 
+	initClient sync.Once
 	errInit    error
 )
 

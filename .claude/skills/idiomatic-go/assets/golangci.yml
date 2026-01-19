@@ -2,111 +2,61 @@ version: "2"
 run:
   go: "1.25"
   tests: false # include test files or not, default is true.
-
-formatters:
-  enable:
-    - gofmt
-    - goimports
-    - golines
-  settings:
-    gofmt:
-      simplify: true
-      rewrite-rules:
-        - pattern: "interface{}"
-          replacement: "any"
-    golines:
-      max-len: 140
+  timeout: 5m
+  modules-download-mode: readonly
 
 linters:
   default: none
   enable:
+    # Code quality and style linters.
     - asasalint # Check for pass []any as any in variadic func(...any).
     - asciicheck # Checks that your code does not contain non-ASCII identifiers.
-    - bidichk # Checks for dangerous unicode character sequences.
     - bodyclose # Checks whether HTTP response body is closed successfully.
-    - canonicalheader # Checks HTTP header names are in canonical form.
-    - containedctx # Checks if struct contains a context.Context field.
-    - contextcheck # Checks function whether use a non-inherited context.
-    - copyloopvar # Checks for copies of loop variables (Go 1.22+).
-    - cyclop # Checks function and package cyclomatic complexity.
-    - decorder # Checks declaration order.
     - dogsled # Checks assignments with too many blank identifiers (e.g. x, _, _, _, := f()).
-    - dupword # Checks for duplicate words in the text.
-    - durationcheck # Checks for two durations multiplied together.
     - errcheck # Checks for unchecked errors in go programs.
-    - errchkjson # Checks for missing error handling in JSON marshaling/unmarshaling.
-    - errname # Checks that sentinel errors are prefixed correctly.
     - errorlint # Finds code that will cause problems with the error wrapping scheme introduced in Go 1.13.
-    - exhaustive # Checks exhaustiveness of enum switch statements.
-    - exptostd # Checks for usage of deprecated standard library packages.
-    - fatcontext # Checks for function calls that pass a context but should use a context from an argument.
-    - forcetypeassert # Finds type assertions that can be replaced with type switches.
-    - funlen # Checks function length.
-    - gocheckcompilerdirectives # Checks for incorrect compiler directives.
-    - gochecknoglobals # Checks that no global variables exist.
-    - gochecknoinits # Checks that no init functions are used.
-    - gocognit # Checks cognitive complexity of functions.
-    - goconst # Finds repeated strings that could be replaced by a constant.
     - gocritic # Provides diagnostics that check for bugs, performance and style issues.
-    - gocyclo # Checks cyclomatic complexity.
-    - godoclint # Checks that code comments follow the godoc convention.
     - godot # Check if comments end in a period.
-    - godox # Checks for TODO, FIXME, NOTE comments.
-    - goheader # Checks if file header matches to pattern.
-    - gomoddirectives # Checks for replace, retract, exclude and replace directives in go.mod.
-    - gomodguard # Allows and blocks list linter for direct imports.
-    - goprintffuncname # Checks that printf-like functions are named with `f` at the end.
     - gosec # Inspects source code for security problems.
     - govet # Vet examines Go source code and reports suspicious constructs, such as Printf calls whose arguments do not align with the format string.
-    - iface # Checks interface length.
-    - importas # Enforces consistent import aliases.
-    - inamedparam # Checks that function parameters are named.
     - ineffassign # Detects when assignments to existing variables are not used.
-    - interfacebloat # Checks for interfaces with too many methods.
-    - lll # Checks line length.
-    - makezero # Checks for make([]T, length, capacity) calls.
-    - misspell # Finds commonly misspelled English words.
-    - mnd # Checks for magic numbers.
-    - musttag # Checks for struct tags.
-    - nakedret # Checks for naked returns.
-    - nestif # Checks for deeply nested if statements.
-    - nilerr # Checks for nil errors.
-    - nlreturn # Checks for a newline before return.
     - noctx # Finds sending http request without context.Context.
-    - noinlineerr # Checks for inline error handling.
     - nolintlint # Reports ill-formed or insufficient nolint directives.
-    - nonamedreturns # Checks for non-named returns.
-    - nosprintfhostport # Checks for sprintf host:port.
-    - paralleltest # Checks for parallel tests.
-    - perfsprint # Checks for performance issues with string formatting.
     - prealloc # Finds slice declarations that could potentially be pre-allocated.
-    - predeclared # Checks for use of predeclared identifiers.
-    - reassign # Checks for reassigned variables.
     - revive # Fast, configurable, extensible, flexible, and beautiful linter for Go. Drop-in replacement of golint.
-    - rowserrcheck # Checks for row errors.
-    - sqlclosecheck # Checks for SQL close errors.
     - staticcheck # It's a set of rules from staticcheck.
-    - tagalign # Checks for tag alignment.
-    - tagliatelle # Checks for tag naming.
-    - testableexamples # Checks for testable examples.
-    - testifylint # Checks for testify usage.
-    - testpackage # Checks for test package usage.
-    - thelper # Checks for test helper usage.
-    - tparallel # Checks for parallel tests.
     - unconvert # Remove unnecessary type conversions.
     - unparam # Reports unused function parameters.
     - unused # Checks Go code for unused constants, variables, functions and types.
-    - usestdlibvars # Checks for standard library variable usage.
-    - varnamelen # Checks for variable name length.
-    - wastedassign # Checks for wasted assignments.
-    - whitespace # Checks for whitespace issues.
-    - wsl_v5 # Checks for whitespace and empty line issues.
+    
+    # Quality-improving linters.
+    - exhaustive # Checks exhaustiveness of enum switch statements.
+    - gochecknoinits # Checks that no init functions are used in Go code.
+    - goconst # Finds repeated strings that could be constants.
+    - gocognit # Measures and limits cognitive complexity of functions.
+    - gocyclo # Computes and checks the cyclomatic complexity of functions.
+    - goprintffuncname # Checks that printf-like functions are named with `f` at the end.
+    - misspell # Finds commonly misspelled English words in comments.
+    - nakedret # Finds naked returns in functions greater than a specified function length.
+    - nestif # Reports deeply nested if statements.
+    - nilnil # Detects suspicious nil checks.
+    - nlreturn # Suggests fixing line breaks before return statements.
+    - perfsprint # Detects inefficient use of fmt.Sprint* functions.
+    - reassign # Checks for reassigned variables that could be avoided.
+    - rowserrcheck # Checks that Err of rows.Err() are checked.
+    - sqlclosecheck # Checks that sql.Rows and sql.Stmt are closed.
+    - mnd # An analyzer to detect magic numbers (renamed from gomnd).
+    - thelper # Analyzes test helper functions.
+    - tparallel # Finds tests that are missing t.Parallel() calls.
+    - usestdlibvars # Detects the possibility to use variables/constants from the Go standard library.
+    - whitespace # Tool for detection of leading and trailing whitespace.
     - wrapcheck # Checks that errors returned from external packages are wrapped.
+    - wsl_v5 # Enforces empty lines at the right places (updated version).
 
   settings:
     dogsled:
       # Checks assignments with too many blank identifiers.
-      max-blank-identifiers: 1
+      max-blank-identifiers: 2
 
     errcheck:
       # Report about not checking of errors in type assertions: `a := b.(MyStruct)`.
@@ -118,6 +68,9 @@ linters:
       # List of functions to exclude from checking, where each entry is a single function to exclude.
       # See https://github.com/kisielk/errcheck#excluding-functions for details.
       exclude-functions:
+        - fmt.Fprint
+        - fmt.Fprintln
+        - fmt.Fprintf
         - io/ioutil.ReadFile
         - io.Copy(*bytes.Buffer)
         - io.Copy(os.Stdout)
@@ -125,7 +78,7 @@ linters:
 
     errorlint:
       # Check whether fmt.Errorf uses the %w verb for formatting errors.
-      errorf: true
+      errorf: false
       # Check for plain type assertions and type switches.
       asserts: true
       # Check for plain error comparisons.
@@ -174,240 +127,6 @@ linters:
           # Default: false
           checkExported: false
 
-    cyclop:
-      # Maximum cyclomatic complexity.
-      # Default: 10
-      max-complexity: 10
-      # Maximum package average complexity.
-      # Default: 0.0 (disabled)
-      package-average: 0.0
-
-    dupl:
-      # Minimal token sequence length to be cloned.
-      # Default: 50
-      threshold: 100
-
-    exhaustive:
-      # Check default case in switch statements.
-      # Default: false
-      default-signifies-exhaustive: false
-
-    exhaustruct:
-      # List of struct patterns to skip.
-      # Default: []
-      exclude: []
-      # List of struct patterns to check.
-      # Default: []
-      include: []
-
-    funlen:
-      # Maximum number of lines in a function.
-      # Default: 100
-      lines: 100
-      # Maximum number of statements in a function.
-      # Default: 50
-      statements: 50
-
-    gocognit:
-      # Minimal complexity of a function.
-      # Default: 30
-      min-complexity: 30
-
-    goconst:
-      # Minimal length of string constant.
-      # Default: 3
-      min-len: 3
-      # Minimal occurrences of constant string count to trigger issue.
-      # Default: 2
-      min-occurrences: 3
-
-    gocyclo:
-      # Minimal complexity of a function.
-      # Default: 15
-      min-complexity: 15
-
-    godoclint:
-      # Whether to check exported functions.
-      # Default: false
-      check-exported: false
-
-    gomoddirectives:
-      # Whether to check for replace directives with local paths.
-      # Default: false
-      replace-allow-list: []
-      # Whether to check for exclude directives.
-      # Default: true
-      exclude-forbidden: true
-      # Whether to check for retract directives.
-      # Default: true
-      retract-allow-no-explanation: false
-
-    gomodguard:
-      # List of modules to allow.
-      # Default: []
-      allowed:
-        modules: []
-      # List of modules to block.
-      # Default: []
-      blocked:
-        modules: []
-
-    importas:
-      # Map of import aliases.
-      # Default: {}
-      alias: []
-
-    lll:
-      # Maximum line length.
-      # Default: 120
-      line-length: 120
-      # Tab width in spaces.
-      # Default: 1
-      tab-width: 1
-
-    makezero:
-      # Whether to check for make([]T, length, capacity) calls.
-      # Default: true
-      always: true
-
-    misspell:
-      # Locale to use for spell checking.
-      # Default: US
-      locale: US
-
-    mnd:
-      # List of checks to perform.
-      # Default: ["case", "condition", "operation", "return", "assign", "argument"]
-      checks:
-        - case
-        - condition
-        - operation
-        - return
-        - assign
-        - argument
-      # List of function patterns to ignore.
-      # Default: []
-      ignored-functions: []
-      # List of file patterns to ignore.
-      # Default: []
-      ignored-files: []
-
-    musttag:
-      # List of struct tags to check.
-      # Default: []
-      functions: []
-
-    nestif:
-      # Minimal complexity of nested if statements.
-      # Default: 5
-      min-complexity: 5
-
-    nlreturn:
-      # Minimum number of statements in a function to require newline before return.
-      # Default: 0
-      block-size: 0
-
-    perfsprint:
-      # Whether to check for performance issues with string formatting.
-      # Default: true
-      int-conversion: true
-      # Whether to check for performance issues with string formatting.
-      # Default: true
-      err-error: true
-      # Whether to check for performance issues with string formatting.
-      # Default: true
-      errorf: true
-
-    tagalign:
-      # Whether to check for tag alignment.
-      # Default: false
-      strict: false
-      # Order of tags.
-      # Default: ["json", "yaml", "xml", "bson", "db", "gorm", "validate", "mapstructure"]
-      order:
-        - json
-        - yaml
-        - xml
-        - bson
-        - db
-        - gorm
-        - validate
-        - mapstructure
-
-    tagliatelle:
-      # Map of struct tag names to their case.
-      # Default: {}
-      case: {}
-
-    varnamelen:
-      # Maximum distance in source lines that is considered a "small scope".
-      # Default: 5
-      max-distance: 5
-      # Minimum length of a variable's name that is considered "long".
-      # Default: 3
-      min-name-length: 3
-      # Check method receivers.
-      # Default: false
-      check-receiver: false
-      # Check named return values.
-      # Default: false
-      check-return: false
-      # Check type parameters.
-      # Default: false
-      check-type-param: false
-      # Ignore "ok" variables that hold the bool return value of a type assertion.
-      # Default: false
-      ignore-type-assert-ok: false
-      # Ignore "ok" variables that hold the bool return value of a map index.
-      # Default: false
-      ignore-map-index-ok: false
-      # Ignore "ok" variables that hold the bool return value of a channel receive.
-      # Default: false
-      ignore-chan-recv-ok: false
-      # Optional list of variable names that should be ignored completely.
-      # Default: []
-      ignore-names: []
-      # Optional list of variable declarations that should be ignored completely.
-      # Default: []
-      ignore-decls: []
-
-    whitespace:
-      # Enforces newlines (or comments) after every multi-line if statement.
-      # Default: false
-      multi-if: false
-      # Enforces newlines (or comments) after every multi-line function signature.
-      # Default: false
-      multi-func: false
-
-    wrapcheck:
-      # An array of strings specifying additional substrings of signatures to ignore.
-      # Default: []
-      extra-ignore-sigs: []
-      # An array of strings that specify substrings of signatures to ignore.
-      # Default: [".Errorf(", "errors.New(", "errors.Unwrap(", "errors.Join(", ".Wrap(", ".Wrapf(", ".WithMessage(", ".WithMessagef(", ".WithStack("]
-      ignore-sigs:
-        - .Errorf(
-        - errors.New(
-        - errors.Unwrap(
-        - errors.Join(
-        - .Wrap(
-        - .Wrapf(
-        - .WithMessage(
-        - .WithMessagef(
-        - .WithStack(
-      # An array of strings that specify regular expressions of signatures to ignore.
-      # Default: []
-      ignore-sig-regexps: []
-      # An array of strings that specify globs of packages to ignore.
-      # Default: []
-      ignore-package-globs: []
-      # An array of strings that specify regular expressions of interfaces to ignore.
-      # Default: []
-      ignore-interface-regexps: []
-      # Determines whether wrapcheck should report errors returned from inside the package.
-      # Default: false
-      report-internal-errors: false
-
     godot:
       # Comments to be checked: `declarations`, `toplevel`, or `all`.
       scope: all
@@ -455,7 +174,7 @@ linters:
         # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#argument-limit
         - name: argument-limit
           arguments:
-            - 4
+            - 10 
           severity: warning
           disabled: false
 
@@ -689,7 +408,7 @@ linters:
         # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#function-result-limit
         - name: function-result-limit
           arguments:
-            - 2
+            - 3
           severity: warning
           disabled: false
 
@@ -756,7 +475,7 @@ linters:
         # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#line-length-limit
         - name: line-length-limit
           arguments:
-            - 150
+            - 160
           severity: warning
           disabled: false
 
@@ -806,7 +525,7 @@ linters:
         # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#package-comments
         - name: package-comments
           severity: warning
-          disabled: false
+          disabled: true
 
         # This rule suggests a shorter way of writing ranges that do not use the second value.
         # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#range
@@ -990,14 +709,122 @@ linters:
           severity: warning
           disabled: true
 
-  exclusions:
-    generated: lax
-    presets:
-      - comments
-      - common-false-positives
-      - legacy
-      - std-error-handling
-    paths:
-      - third_party$
-      - builtin$
-      - examples$
+    # New linter settings for enhanced code quality
+    depguard:
+      # Rules configuration for depguard
+      rules:
+        main:
+          deny:
+            - pkg: "github.com/golangci/golangci-lint"
+              desc: "use golangci-lint.run instead"
+
+    dupl:
+      # Threshold for code duplication detection
+      threshold: 100
+
+    exhaustive:
+      # Check exhaustiveness of enum switch statements
+      default-signifies-exhaustive: false
+      ignore-enum-members: "^_$"
+      ignore-enum-types: "^(Error|StatusCode)$"
+      package-scope-only: false
+      explicit-exhaustive-map: false
+      explicit-exhaustive-switch: false
+
+    funlen:
+      # Function length limits
+      lines: 100
+      statements: 50
+
+    gocognit:
+      # Cognitive complexity threshold
+      min-complexity: 20
+
+    gocyclo:
+      # Cyclomatic complexity threshold
+      min-complexity: 15
+
+
+    misspell:
+      # Spell checking
+      locale: US
+
+    nakedret:
+      # Naked return detection
+      max-func-lines: 30
+
+    nestif:
+      # Nested if statements
+      min-complexity: 5
+
+    nlreturn:
+      # New line before return
+      block-size: 2
+
+
+    perfsprint:
+      # Performance sprint checks
+      int-conversion: true
+      err-error: true
+      errorf: true
+
+    reassign:
+      # Variable reassignment checks
+      patterns:
+        - "err.*:="
+
+    testpackage:
+      # Test package checking
+      skip-regexp: (export|internal)_test\.go
+
+    thelper:
+      # Test helper checking
+      test:
+        first: true
+        name: true
+        begin: true
+      benchmark:
+        first: true
+        name: true
+        begin: true
+      tb:
+        first: true
+        name: true
+        begin: true
+
+
+    usestdlibvars:
+      http-status-code: true
+      http-method: true
+      time-weekday: true
+      time-month: true
+      time-layout: true
+      crypto-hash: true
+      default-rpc-path: true
+      constant-kind: true
+      tls-signature-scheme: true
+
+    varnamelen:
+      # Variable name length
+      min-name-length: 2
+      ignore-names: ["^_$"]
+      ignore-decls: []
+      ignore-type-assert-ok: true
+      ignore-map-index-ok: true
+      ignore-chan-recv-ok: true
+
+    whitespace:
+      # Whitespace checking
+      multi-if: false
+      multi-func: false
+
+    wrapcheck:
+      ignore-package-globs:
+        - code.dev-aws.infingame.com/axis/axis-go/axis/xaxis*
+
+    wsl_v5:
+      allow-first-in-block: true
+      allow-whole-block: false
+      branch-max-lines: 2
+      disable:
+        - decl

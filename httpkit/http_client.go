@@ -175,71 +175,57 @@ type ClientOption func(config *Config)
 // underlying http.Transport of http.Client, after which
 // connection will be terminated.
 func WithTLSHandshakeTimeout(timeout time.Duration) ClientOption {
-	option := func(config *Config) {
+	return func(config *Config) {
 		config.tlsHandshakeTimeout = timeout
 	}
-
-	return option
 }
 
 // WithCustomDialer sets given dialer as custom net.Dialer
 // underlying http.Transport of http.Client.
 func WithCustomDialer(dialer CustomDialer) ClientOption {
-	option := func(config *Config) {
+	return func(config *Config) {
 		config.customDialer = dialer
 	}
-
-	return option
 }
 
 // WithDialTimeout sets the Dial timeout to
 // underlying http.Transport of http.Client.
 func WithDialTimeout(timeout time.Duration) ClientOption {
-	option := func(config *Config) {
+	return func(config *Config) {
 		config.defaultDialer.Timeout = timeout
 	}
-
-	return option
 }
 
 // WithKeepAliveDisabled sets the DisableKeepAlives value to
 // underlying http.Transport of http.Client.
 func WithKeepAliveDisabled(disabled bool) ClientOption {
-	option := func(config *Config) {
+	return func(config *Config) {
 		config.disableKeepAlives = disabled
 	}
-
-	return option
 }
 
 // WithKeepAliveTimeout sets the KeepAlive timeout to
 // underlying http.Transport of http.Client.
 func WithKeepAliveTimeout(timeout time.Duration) ClientOption {
-	option := func(config *Config) {
+	return func(config *Config) {
 		config.defaultDialer.KeepAlive = timeout
 	}
-
-	return option
 }
 
 // WithMaxIdleConns sets the MaxIdleConns value to
 // underlying http.Transport of http.Client.
 func WithMaxIdleConns(maxn int) ClientOption {
-	option := func(config *Config) {
+	return func(config *Config) {
 		config.maxIdleConns = maxn
 	}
-
-	return option
 }
 
 // WithMaxIdleConnsPerHost sets the MaxIdleConnsPerHost value to
 // underlying http.Transport of http.Client.
 func WithMaxIdleConnsPerHost(maxn int) ClientOption {
-	option := func(config *Config) {
+	return func(config *Config) {
 		config.maxIdleConnsPerHost = maxn
 	}
-
-	return option
 }
 
 // WithResponseHeaderTimeout sets the ResponseHeaderTimeout value to
@@ -261,11 +247,9 @@ func WithWriteBufferSize(size int) ClientOption {
 // WithReadBufferSize sets the ReadBufferSize value to
 // underlying http.Transport of http.Client.
 func WithReadBufferSize(size int) ClientOption {
-	option := func(config *Config) {
+	return func(config *Config) {
 		config.readBufferSize = size
 	}
-
-	return option
 }
 
 // WithRetries configure http.Client to do retries
@@ -273,16 +257,14 @@ func WithReadBufferSize(size int) ClientOption {
 func WithRetries(options ...retry.Option) ClientOption {
 	retryCfg := retry.Options{}
 
-	for _, option := range options {
-		option(&retryCfg)
+	for _, opt := range options {
+		opt(&retryCfg)
 	}
 
-	option := func(config *Config) {
+	return func(config *Config) {
 		config.retryBackoff = retryCfg.Backoff()
 		config.retryMaxAttempts = retryCfg.MaxRetries()
 	}
-
-	return option
 }
 
 // NewClient takes options to configure and return
@@ -355,22 +337,26 @@ func (t *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	var res *http.Response
 
 	for i := uint(0); i <= attempts; i++ {
+		// Close previous response body before retry to prevent connection leak.
 		if res != nil {
-			// In case of retry when the previous response is not nil we try to drain
-			// the response body to utilize the HTTP connection.
 			if err := res.Body.Close(); err != nil {
-				return nil, fmt.Errorf("failed to close response body: %w", err)
+				return nil, fmt.Errorf("close response body: %w", err)
 			}
+		}
+
+		// Check if context is canceled before attempting request.
+		if err := req.Context().Err(); err != nil {
+			return nil, err
 		}
 
 		var doErr error
 		res, doErr = t.client.Do(req)
 
 		// If the bodyReader is not nil we try rewind the read position to the beginning
-		// because it is already red at this point.
+		// because it is already read at this point.
 		if bodyReader != nil {
 			if _, err := bodyReader.Seek(0, 0); err != nil {
-				return nil, fmt.Errorf("failed to rewind request body to the beggining: %w", err)
+				return nil, fmt.Errorf("rewind request body: %w", err)
 			}
 		}
 
@@ -399,7 +385,10 @@ func (t *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 				}
 			}
 
-			time.Sleep(t.backoff.Next(i))
+			if err := t.sleepWithContext(req.Context(), t.backoff.Next(i)); err != nil {
+				return nil, err
+			}
+
 			continue
 		}
 
@@ -413,12 +402,18 @@ func (t *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 				// if the parseErr in not nil then we will just ignore the error
 				// and will use default backoff.
 				if parseErr == nil {
-					time.Sleep(time.Second * time.Duration(timeout))
+					if err := t.sleepWithContext(req.Context(), time.Second*time.Duration(timeout)); err != nil {
+						return nil, err
+					}
+
 					continue
 				}
 			}
 
-			time.Sleep(t.backoff.Next(i))
+			if err := t.sleepWithContext(req.Context(), t.backoff.Next(i)); err != nil {
+				return nil, err
+			}
+
 			continue
 		}
 
@@ -427,10 +422,27 @@ func (t *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 			res.StatusCode != http.StatusNotImplemented {
 
 			// Sleep before next retry.
-			time.Sleep(t.backoff.Next(i))
+			if err := t.sleepWithContext(req.Context(), t.backoff.Next(i)); err != nil {
+				return nil, err
+			}
+
 			continue
 		}
+
+		// Successful response, exit the retry loop.
+		break
 	}
 
 	return res, nil
+}
+
+// sleepWithContext sleeps for the specified duration, but returns early if context is canceled.
+func (*roundTripper) sleepWithContext(ctx context.Context, d time.Duration) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+
+	case <-time.After(d):
+		return nil
+	}
 }
