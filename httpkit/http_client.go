@@ -337,17 +337,16 @@ func (t *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	var res *http.Response
 
 	for i := uint(0); i <= attempts; i++ {
-		// Check if context is canceled before attempting request.
-		if err := req.Context().Err(); err != nil {
-			return nil, err
-		}
-
+		// Close previous response body before retry to prevent connection leak.
 		if res != nil {
-			// In case of retry when the previous response is not nil we try to drain
-			// the response body to utilize the HTTP connection.
 			if err := res.Body.Close(); err != nil {
 				return nil, fmt.Errorf("close response body: %w", err)
 			}
+		}
+
+		// Check if context is canceled before attempting request.
+		if err := req.Context().Err(); err != nil {
+			return nil, err
 		}
 
 		var doErr error
