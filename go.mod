@@ -20,7 +20,7 @@ require (
 	github.com/redis/go-redis/v9 v9.17.2
 	github.com/resend/resend-go/v2 v2.28.0
 	github.com/rs/xid v1.6.0
-	go.mongodb.org/mongo-driver v1.17.6
+	go.mongodb.org/mongo-driver v1.17.9
 	golang.org/x/crypto v0.47.0
 	golang.org/x/sync v0.19.0
 	google.golang.org/grpc v1.78.0
