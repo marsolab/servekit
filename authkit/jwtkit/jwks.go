@@ -71,6 +71,7 @@ func (p *JWKSProvider) refresh(ctx context.Context) error {
 		return fmt.Errorf("create jwks request: %w", err)
 	}
 
+	//nolint:gosec // JWKS URL is configured by the application, not arbitrary user input.
 	resp, err := p.client.Do(req)
 	if err != nil {
 		return fmt.Errorf("fetch jwks: %w", err)

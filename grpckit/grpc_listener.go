@@ -23,7 +23,7 @@ const (
 // Represents a function which receive a pointer to the generic struct that represents
 // a part of ListenerGRPC configuration and changes it default values to the given ones.
 //
-// See the applyOptionsGRPC function to understand the configuration behaviour.
+// See the applyOptionsGRPC function to understand the configuration behavior.
 // Option functions should only be passed to ListenerGRPC constructor function NewListenerGRPC.
 type Option[T ListenerConfig] func(o *T)
 

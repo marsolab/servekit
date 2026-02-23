@@ -354,6 +354,7 @@ func (t *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 		}
 
 		var doErr error
+		//nolint:gosec // Request URL comes from the caller of the HTTP client and is an expected capability.
 		res, doErr = t.client.Do(req)
 
 		// If the bodyReader is not nil we try rewind the read position to the beginning

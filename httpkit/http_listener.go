@@ -51,7 +51,7 @@ type ListenerOptionConstraint interface {
 // Represents a function which receive a pointer to the generic struct that represents
 // a part of ListenerHTTP configuration and changes it default values to the given ones.
 //
-// See the applyOptionsHTTP function to understand the configuration behaviour.
+// See the applyOptionsHTTP function to understand the configuration behavior.
 // ListenerOption functions should only be passed to ListenerHTTP constructor function NewListenerHTTP.
 type ListenerOption[T ListenerOptionConstraint] func(o *T)
 
@@ -445,7 +445,7 @@ func (l *ListenerHTTP) handleShutdown(ctx context.Context) error {
 		slog.String("address", l.server.Addr),
 	)
 
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+	shutdownCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), shutdownTimeout)
 	defer cancel()
 
 	if err := l.server.Shutdown(shutdownCtx); err != nil {
@@ -593,7 +593,7 @@ func (l *ListenerHTTP) configureHealth(cfg ListenerConfig) error {
 				health.Get("/", l.healthCheckHandlerHTML)
 				health.Head("/", l.healthCheckHandler)
 
-			default:
+			case healthReportNone:
 				health.Get("/", l.healthCheckHandler)
 				health.Head("/", l.healthCheckHandler)
 			}
