@@ -84,6 +84,30 @@ func (b *Block) validate() error {
 	case Header:
 		return b.validateHeader()
 
+	case Divider:
+		return nil
+
+	case Section:
+		if b.Text == nil {
+			return ErrNilText
+		}
+
+		if b.Text.Style != nil {
+			return ErrInvalidBlockTextStyle
+		}
+
+		if b.Text.Type != PlainText && b.Text.Type != Markdown {
+			return ErrInvalidBlockTextType
+		}
+
+		if b.Text.Type == Markdown && b.Text.Emoji != nil {
+			return ErrInvalidBlockTextEmoji
+		}
+
+		if b.Text.Text == "" {
+			return ErrNilText
+		}
+
 	default:
 		return ErrInvalidBlockType
 	}
