@@ -64,4 +64,8 @@ func GetRequestID(ctx context.Context) string {
 }
 
 // zero returns default zeroed value for type T.
-func zero[T any]() (v T) { return v }
+func zero[T any]() T {
+	var zeroValue T
+
+	return zeroValue
+}

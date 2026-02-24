@@ -23,6 +23,7 @@ func NewBCryptHasher(opts ...Option) *BCryptHasher {
 	for _, opt := range opts {
 		opt(&h)
 	}
+
 	return &h
 }
 
@@ -53,7 +54,8 @@ func WithCost(cost int) Option {
 type BCryptHasher struct{ cost int }
 
 func (*BCryptHasher) CheckPassword(hash, pass string) error {
-	if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(pass)); err != nil {
+	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(pass))
+	if err != nil {
 		if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
 			return errkit.ErrPasswordIncorrect
 		}

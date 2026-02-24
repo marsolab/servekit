@@ -43,7 +43,6 @@ linters:
     - forcetypeassert # Finds type assertions that can be replaced with type switches.
     - funlen # Checks function length.
     - gocheckcompilerdirectives # Checks for incorrect compiler directives.
-    - gochecknoglobals # Checks that no global variables exist.
     - gochecknoinits # Checks that no init functions are used.
     - gocognit # Checks cognitive complexity of functions.
     - goconst # Finds repeated strings that could be replaced by a constant.
@@ -66,14 +65,12 @@ linters:
     - lll # Checks line length.
     - makezero # Checks for make([]T, length, capacity) calls.
     - misspell # Finds commonly misspelled English words.
-    - mnd # Checks for magic numbers.
     - musttag # Checks for struct tags.
     - nakedret # Checks for naked returns.
     - nestif # Checks for deeply nested if statements.
     - nilerr # Checks for nil errors.
     - nlreturn # Checks for a newline before return.
     - noctx # Finds sending http request without context.Context.
-    - noinlineerr # Checks for inline error handling.
     - nolintlint # Reports ill-formed or insufficient nolint directives.
     - nonamedreturns # Checks for non-named returns.
     - nosprintfhostport # Checks for sprintf host:port.
@@ -97,7 +94,6 @@ linters:
     - unparam # Reports unused function parameters.
     - unused # Checks Go code for unused constants, variables, functions and types.
     - usestdlibvars # Checks for standard library variable usage.
-    - varnamelen # Checks for variable name length.
     - wastedassign # Checks for wasted assignments.
     - whitespace # Checks for whitespace issues.
     - wsl_v5 # Checks for whitespace and empty line issues.
@@ -382,7 +378,15 @@ linters:
     wrapcheck:
       # An array of strings specifying additional substrings of signatures to ignore.
       # Default: []
-      extra-ignore-sigs: []
+      extra-ignore-sigs:
+        - (context.Context).Err()
+        - (*golang.org/x/sync/errgroup.Group).Wait()
+        - (*github.com/benbjohnson/litestream.Replica).Restore(
+        - (*go.mongodb.org/mongo-driver/mongo.Client).Disconnect(
+        - (*github.com/jackc/pgx/v5.Conn).Close(
+        - (*github.com/jackc/tern/v2/migrate.Migrator).Migrate(
+        - io.ReadAll(
+        - (*html/template.Template).Execute(
       # An array of strings that specify substrings of signatures to ignore.
       # Default: [".Errorf(", "errors.New(", "errors.Unwrap(", "errors.Join(", ".Wrap(", ".Wrapf(", ".WithMessage(", ".WithMessagef(", ".WithStack("]
       ignore-sigs:
@@ -395,6 +399,8 @@ linters:
         - .WithMessage(
         - .WithMessagef(
         - .WithStack(
+        - .ListenAndServeTLS(
+        - .ListenAndServe(
       # An array of strings that specify regular expressions of signatures to ignore.
       # Default: []
       ignore-sig-regexps: []

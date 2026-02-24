@@ -73,12 +73,14 @@ func Init(dsn string, options ...Option) error {
 			option(&o)
 		}
 
-		if err := sentry.Init(o); err != nil {
-			errInit = fmt.Errorf("sentry: client initialization: %w", err)
+		initErr := sentry.Init(o)
+		if initErr != nil {
+			errInit = fmt.Errorf("sentry: client initialization: %w", initErr)
 		}
 
-		if err := errkit.RegisterReporter(reporter{}); err != nil {
-			errInit = fmt.Errorf("sentry: client registration: %w", err)
+		registerErr := errkit.RegisterReporter(reporter{})
+		if registerErr != nil {
+			errInit = fmt.Errorf("sentry: client registration: %w", registerErr)
 		}
 	})
 

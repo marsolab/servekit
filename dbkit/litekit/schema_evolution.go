@@ -45,7 +45,7 @@ const (
 // Mutation represents a single schema mutation.
 // It contains the version number of the mutation and the changes to be applied.
 type Mutation struct {
-	version uint
+	version int
 	changes []byte
 }
 
@@ -107,6 +107,7 @@ func NewEvolver(db *Conn, mutations fs.FS, options ...EvolverOption) (*Evolver, 
 	return &e, nil
 }
 
+//nolint:cyclop // Transaction flow is intentionally explicit to preserve migration behavior.
 func (e *Evolver) MutateSchema() (eErr error) {
 	ctx, cancel := context.WithTimeout(context.Background(), e.mutationTimeout)
 	defer cancel()
@@ -153,7 +154,11 @@ func (e *Evolver) MutateSchema() (eErr error) {
 	// Range over mutation to apply each one.
 	for _, m := range mutations {
 		// Skip already applied mutations.
-		if schemaVersionInfo.Version < 0 || m.version <= uint(schemaVersionInfo.Version) {
+		if schemaVersionInfo.Version < 0 {
+			continue
+		}
+
+		if m.version <= schemaVersionInfo.Version {
 			continue
 		}
 
@@ -217,7 +222,7 @@ func (e *Evolver) loadMutations() ([]Mutation, error) {
 			}
 
 			evolutions = append(evolutions, Mutation{
-				version: uint(i + 1), //nolint:gosec // i is always positive
+				version: i + 1,
 				changes: changes,
 			})
 		}
@@ -249,7 +254,7 @@ func (e *Evolver) backupBeforeMutate() (bErr error) {
 		}
 	}()
 
-	dst, dstOpenErr := os.Create(path.Join(srcDir, fmt.Sprintf("backup-%s", stat.Name())))
+	dst, dstOpenErr := os.Create(path.Join(srcDir, "backup-"+stat.Name()))
 	if dstOpenErr != nil {
 		return fmt.Errorf("create database backup file: %w", dstOpenErr)
 	}

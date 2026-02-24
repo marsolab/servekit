@@ -83,7 +83,9 @@ type Config struct {
 	defaultDialer *net.Dialer
 
 	// retryConfig represents configuration for retry logic.
-	retryBackoff     retry.Backoff
+	retryBackoff retry.Backoff
+
+	// retryMaxAttempts represents the maximum number of attempts to retry a request.
 	retryMaxAttempts uint
 
 	// disableKeepAlives if true, disables HTTP keep-alives and
@@ -314,7 +316,7 @@ type roundTripper struct {
 	client      *http.Client
 }
 
-//nolint:revive // cyclomatic is acceptable here.
+//nolint:cyclop,funlen,gocognit,gocyclo,nestif,revive // Retry state machine is intentionally explicit.
 func (t *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	var (
 		attempts   = t.maxAttempts
@@ -337,19 +339,27 @@ func (t *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	var res *http.Response
 
 	for i := uint(0); i <= attempts; i++ {
-		// Close previous response body before retry to prevent connection leak.
+		// Check if context is canceled before attempting request.
+		ctxErr := req.Context().Err()
+		if ctxErr != nil {
+			return nil, ctxErr
+		}
+
 		if res != nil {
-			if err := res.Body.Close(); err != nil {
-				return nil, fmt.Errorf("close response body: %w", err)
+			closeErr := res.Body.Close()
+			if closeErr != nil {
+				return nil, fmt.Errorf("close response body: %w", closeErr)
 			}
 		}
 
 		// Check if context is canceled before attempting request.
-		if err := req.Context().Err(); err != nil {
-			return nil, err
+		ctxErr = req.Context().Err()
+		if ctxErr != nil {
+			return nil, ctxErr
 		}
 
 		var doErr error
+		//nolint:gosec // Request URL comes from the caller of the HTTP client and is an expected capability.
 		res, doErr = t.client.Do(req)
 
 		// If the bodyReader is not nil we try rewind the read position to the beginning
@@ -392,6 +402,10 @@ func (t *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 			continue
 		}
 
+		if res == nil {
+			return nil, errors.New("http client returned nil response without error")
+		}
+
 		// The '429 To Many Requests' and '503 Service Unavailable' are retryable status codes.
 		// Here we check for 'Retry-After' response header that indicates when the target server
 		// is ready to handle the client request.
@@ -420,7 +434,6 @@ func (t *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 		if res.StatusCode >= http.StatusInternalServerError &&
 			res.StatusCode != http.StatusServiceUnavailable &&
 			res.StatusCode != http.StatusNotImplemented {
-
 			// Sleep before next retry.
 			if err := t.sleepWithContext(req.Context(), t.backoff.Next(i)); err != nil {
 				return nil, err

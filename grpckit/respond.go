@@ -74,7 +74,8 @@ type ResponseOptions struct {
 	reportError bool
 }
 
-// NewResponseOptions returns a pointer to a new ResponseOptions object with default values and applies the given options to it.
+// NewResponseOptions returns a pointer to a new ResponseOptions object with
+// default values and applies the given options to it.
 func NewResponseOptions(options ...ResponseOption) *ResponseOptions {
 	r := ResponseOptions{
 		statusCode:  codes.Unknown,

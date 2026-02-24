@@ -32,6 +32,14 @@ const (
 	// passed to the New function by WithJournalMode option is not
 	// supported by the Storage.
 	ErrUnsupportedJournalMode Error = "unsupported journal mode"
+
+	// defaultPingTimeout represents default value
+	// for ping timeout.
+	defaultPingTimeout = 10 * time.Second
+
+	// defaultBackupCloseTimeout represents default value
+	// for backup close timeout.
+	defaultBackupCloseTimeout = 5 * time.Second
 )
 
 // Error represents package level errors related to the storage engine.
@@ -301,8 +309,9 @@ func New(path string, options ...Option) (*Conn, error) {
 	conn.logger.Debug("Setting up database backups")
 
 	if conn.backup {
-		if err := conn.configureBackups(); err != nil {
-			return nil, fmt.Errorf("sqlite: setup backups: %w", err)
+		backupErr := conn.configureBackups()
+		if backupErr != nil {
+			return nil, fmt.Errorf("sqlite: setup backups: %w", backupErr)
 		}
 	}
 
@@ -318,11 +327,12 @@ func New(path string, options ...Option) (*Conn, error) {
 		return nil, fmt.Errorf("sqlite: open database: %w", openErr)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultPingTimeout)
 	defer cancel()
 
-	if err := db.PingContext(ctx); err != nil {
-		return nil, fmt.Errorf("sqlite: connect to database: %w", err)
+	pingErr := db.PingContext(ctx)
+	if pingErr != nil {
+		return nil, fmt.Errorf("sqlite: connect to database: %w", pingErr)
 	}
 
 	conn.DB = db
@@ -334,25 +344,30 @@ func New(path string, options ...Option) (*Conn, error) {
 
 // Health implements hc.HealthChecker interface.
 func (c *Conn) Health(ctx context.Context) error {
-	if err := c.PingContext(ctx); err != nil {
-		return fmt.Errorf("sqlite: health check: %w", err)
+	pingErr := c.PingContext(ctx)
+	if pingErr != nil {
+		return fmt.Errorf("sqlite: health check: %w", pingErr)
 	}
 
 	return nil
 }
 
-func (c *Conn) Close() (closeErr error) {
+func (c *Conn) Close() error {
+	var closeErr error
+
 	if c.backup && c.backupDB != nil {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), defaultBackupCloseTimeout)
 		defer cancel()
 
-		if err := c.backupDB.Close(ctx); err != nil {
-			closeErr = errors.Join(closeErr, fmt.Errorf("close backup database: %w", err))
+		backupCloseErr := c.backupDB.Close(ctx)
+		if backupCloseErr != nil {
+			closeErr = errors.Join(closeErr, fmt.Errorf("close backup database: %w", backupCloseErr))
 		}
 	}
 
-	if err := c.DB.Close(); err != nil {
-		closeErr = errors.Join(closeErr, fmt.Errorf("close database connection: %w", err))
+	dbCloseErr := c.DB.Close()
+	if dbCloseErr != nil {
+		closeErr = errors.Join(closeErr, fmt.Errorf("close database connection: %w", dbCloseErr))
 	}
 
 	return closeErr
@@ -410,12 +425,14 @@ func (c *Conn) configureBackups() error {
 	ctx, cancel := context.WithTimeout(context.Background(), c.backupRestoreTimeout)
 	defer cancel()
 
-	if err := c.restoreBackup(ctx, lsr); err != nil {
-		return fmt.Errorf("restore backup: %w", err)
+	restoreErr := c.restoreBackup(ctx, lsr)
+	if restoreErr != nil {
+		return fmt.Errorf("restore backup: %w", restoreErr)
 	}
 
-	if err := lsdb.Open(); err != nil {
-		return fmt.Errorf("open database for replication: %w", err)
+	openErr := lsdb.Open()
+	if openErr != nil {
+		return fmt.Errorf("open database for replication: %w", openErr)
 	}
 
 	c.backupDB = lsdb
@@ -424,12 +441,13 @@ func (c *Conn) configureBackups() error {
 }
 
 func (c *Conn) restoreBackup(ctx context.Context, replica *litestream.Replica) error {
-	if _, err := os.Stat(replica.DB().Path()); err == nil {
+	_, statErr := os.Stat(replica.DB().Path())
+	if statErr == nil {
 		c.logger.Debug("Database file already exists, skipping restore")
 
 		return nil
-	} else if !os.IsNotExist(err) {
-		return fmt.Errorf("get database file stats: %w", err)
+	} else if !os.IsNotExist(statErr) {
+		return fmt.Errorf("get database file stats: %w", statErr)
 	}
 
 	// Configure restore to write out to DSN path.
@@ -454,8 +472,9 @@ func (c *Conn) restoreBackup(ctx context.Context, replica *litestream.Replica) e
 		slog.Time("updatedAt", updatedAt),
 	)
 
-	if err := replica.Restore(ctx, opt); err != nil {
-		return err
+	replicaRestoreErr := replica.Restore(ctx, opt)
+	if replicaRestoreErr != nil {
+		return replicaRestoreErr
 	}
 
 	c.logger.Debug("Restore completed successfully")

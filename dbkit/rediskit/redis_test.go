@@ -1,1 +1,1 @@
-package redisconn
+package rediskit

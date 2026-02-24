@@ -23,7 +23,7 @@ const (
 // Represents a function which receive a pointer to the generic struct that represents
 // a part of ListenerGRPC configuration and changes it default values to the given ones.
 //
-// See the applyOptionsGRPC function to understand the configuration behaviour.
+// See the applyOptionsGRPC function to understand the configuration behavior.
 // Option functions should only be passed to ListenerGRPC constructor function NewListenerGRPC.
 type Option[T ListenerConfig] func(o *T)
 
@@ -161,6 +161,11 @@ func (l *ListenerGRPC) handleShutdown(ctx context.Context) error {
 		return nil
 
 	case <-shutdownCtx.Done():
+		shutdownErr := shutdownCtx.Err()
+		if shutdownErr == nil {
+			shutdownErr = context.DeadlineExceeded
+		}
+
 		l.logger.Warn("gRPC server graceful shutdown timeout exceeded, forcing stop",
 			slog.String("address", l.listener.Addr().String()),
 			slog.Duration("timeout", shutdownTimeout),
@@ -170,10 +175,10 @@ func (l *ListenerGRPC) handleShutdown(ctx context.Context) error {
 
 		l.logger.Error("Failed to shutdown the gRPC listener gracefully",
 			slog.String("address", l.listener.Addr().String()),
-			slog.String("error", shutdownCtx.Err().Error()),
+			slog.String("error", shutdownErr.Error()),
 		)
 
-		return fmt.Errorf("%w failed! Forced stop: %w", servekit.ErrGracefullyShutdown, shutdownCtx.Err())
+		return fmt.Errorf("%w failed! Forced stop: %w", servekit.ErrGracefullyShutdown, shutdownErr)
 	}
 }
 

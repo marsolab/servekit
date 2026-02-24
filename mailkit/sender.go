@@ -19,11 +19,12 @@ type Email struct {
 
 // Message represents email message.
 type Message struct {
-	From        string            `json:"from"`
-	To          []string          `json:"to"`
-	Subject     string            `json:"subject"`
-	Bcc         []string          `json:"bcc,omitempty"`
-	Cc          []string          `json:"cc,omitempty"`
+	From    string   `json:"from"`
+	To      []string `json:"to"`
+	Subject string   `json:"subject"`
+	Bcc     []string `json:"bcc,omitempty"`
+	Cc      []string `json:"cc,omitempty"`
+	//nolint:tagliatelle // Preserve snake_case for compatibility with common email payload formats.
 	ReplyTo     string            `json:"reply_to,omitempty"`
 	HTML        string            `json:"html,omitempty"`
 	Text        string            `json:"text,omitempty"`

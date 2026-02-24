@@ -33,7 +33,8 @@ const (
 // NewNotification creates a new notification.
 func NewNotification(blocks ...Block) (*Notification, error) {
 	for i, block := range blocks {
-		if err := block.validate(); err != nil {
+		err := block.validate()
+		if err != nil {
 			return nil, fmt.Errorf("block %d is invalid: %w", i, err)
 		}
 	}
@@ -41,7 +42,7 @@ func NewNotification(blocks ...Block) (*Notification, error) {
 	return &Notification{Blocks: blocks}, nil
 }
 
-// Block types are defined in the Slack API documentation.
+// BlockType values are defined in the Slack API documentation.
 type BlockType string
 
 // Block types are defined in the Slack API documentation.
@@ -51,7 +52,7 @@ const (
 	Section BlockType = "section"
 )
 
-// Text types are defined in the Slack API documentation.
+// TextType values are defined in the Slack API documentation.
 type TextType string
 
 const (
@@ -81,28 +82,33 @@ func (b *Block) validate() error {
 
 	switch b.Type {
 	case Header:
-		if b.Text == nil {
-			return ErrNilText
-		}
-
-		if b.Text.Style != nil {
-			return ErrInvalidBlockTextStyle
-		}
-
-		if b.Text.Type != PlainText {
-			return ErrInvalidBlockTextType
-		}
-
-		if b.Text.Text == "" {
-			return ErrNilText
-		}
+		return b.validateHeader()
 
 	default:
 		return ErrInvalidBlockType
 	}
+}
+
+func (b *Block) validateHeader() error {
+	if b.Text == nil {
+		return ErrNilText
+	}
+
+	if b.Text.Style != nil {
+		return ErrInvalidBlockTextStyle
+	}
+
+	if b.Text.Type != PlainText {
+		return ErrInvalidBlockTextType
+	}
+
+	if b.Text.Text == "" {
+		return ErrNilText
+	}
 
 	return nil
 }
+
 
 // Text is a single text block of a notification.
 type Text struct {

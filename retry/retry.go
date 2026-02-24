@@ -212,10 +212,12 @@ func Do(ctx context.Context, fn func(ctx context.Context) error, options ...Opti
 				select {
 				case <-ctx.Done():
 					timer.Stop()
+
 					return ctx.Err()
 
 				case <-timer.C:
 					timer.Stop()
+
 					continue
 				}
 			}
