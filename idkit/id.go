@@ -40,13 +40,15 @@ func ULID() string {
 	if err != nil {
 		panic(fmt.Errorf("failed to generate ULID: %w", err))
 	}
+
 	return id
 }
 
 // ValidateULID validates string representation
 // of ULID identifier.
 func ValidateULID(id string) error {
-	if _, err := ulid.Parse(id); err != nil {
+	_, parseErr := ulid.Parse(id)
+	if parseErr != nil {
 		return errkit.ErrInvalidID
 	}
 
@@ -58,7 +60,8 @@ func XID() string { return strings.ToUpper(xid.New().String()) }
 
 // ValidateXID validates string representation of XID identifier.
 func ValidateXID(id string) error {
-	if _, err := xid.FromString(id); err != nil {
+	_, parseErr := xid.FromString(id)
+	if parseErr != nil {
 		return errkit.ErrInvalidID
 	}
 
@@ -78,11 +81,13 @@ func ParseXID(id string) (xid.ID, error) {
 // DigiCode returns 6-digit code as a string.
 func DigiCode() string {
 	var b strings.Builder
-	for i := 0; i < digiCodeLen; i++ {
+
+	for range digiCodeLen {
 		n, err := rand.Int(rand.Reader, big.NewInt(digiCodeMaxN+1))
 		if err != nil {
 			panic(fmt.Errorf("failed to generate random digit: %w", err))
 		}
+
 		b.WriteString(strconv.FormatInt(n.Int64(), 10))
 	}
 

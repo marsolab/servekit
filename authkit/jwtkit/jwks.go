@@ -16,6 +16,8 @@ import (
 	"github.com/marsolab/servekit/errkit"
 )
 
+const defaultClientTimeout = 10 * time.Second
+
 // Key represents a single key in a JWK set.
 type Key struct {
 	Use string `json:"use"`
@@ -45,20 +47,25 @@ type JWKSProvider struct {
 // NewJWKSProvider creates a new JWKSProvider.
 func NewJWKSProvider(jwksURL string, refreshInterval time.Duration) (*JWKSProvider, error) {
 	p := &JWKSProvider{
-		client:     &http.Client{Timeout: 10 * time.Second},
+		client:     &http.Client{Timeout: defaultClientTimeout},
 		jwksURL:    jwksURL,
 		keyCache:   make(map[string]*rsa.PublicKey),
 		refreshInt: refreshInterval,
 	}
 
-	if err := p.refresh(context.Background()); err != nil {
-		return nil, fmt.Errorf("initial jwks refresh: %w", err)
+	refreshErr := p.refresh(context.Background())
+	if refreshErr != nil {
+		return nil, fmt.Errorf("initial jwks refresh: %w", refreshErr)
 	}
 
 	return p, nil
 }
 
 func (p *JWKSProvider) refresh(ctx context.Context) error {
+	if p == nil {
+		return errors.New("jwks provider is nil")
+	}
+
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -76,6 +83,11 @@ func (p *JWKSProvider) refresh(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("fetch jwks: %w", err)
 	}
+
+	if resp == nil {
+		return errors.New("fetch jwks: empty response")
+	}
+
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
@@ -83,8 +95,10 @@ func (p *JWKSProvider) refresh(ctx context.Context) error {
 	}
 
 	var keyStore KeyStore
-	if err := json.NewDecoder(resp.Body).Decode(&keyStore); err != nil {
-		return fmt.Errorf("decode jwks: %w", err)
+
+	decodeErr := json.NewDecoder(resp.Body).Decode(&keyStore)
+	if decodeErr != nil {
+		return fmt.Errorf("decode jwks: %w", decodeErr)
 	}
 
 	p.keyStore = &keyStore
@@ -126,8 +140,13 @@ func (*JWKSProvider) convertKey(e, n string) (*rsa.PublicKey, error) {
 }
 
 func (p *JWKSProvider) getVerifier(kid string) (jwt.Verifier, error) {
-	if err := p.refresh(context.Background()); err != nil {
-		return nil, fmt.Errorf("refresh jwks: %w", err)
+	if p == nil {
+		return nil, errors.New("jwks provider is nil")
+	}
+
+	refreshErr := p.refresh(context.Background())
+	if refreshErr != nil {
+		return nil, fmt.Errorf("refresh jwks: %w", refreshErr)
 	}
 
 	p.mu.RLock()
@@ -148,6 +167,10 @@ func (p *JWKSProvider) getVerifier(kid string) (jwt.Verifier, error) {
 
 // ParseVerify parses and verifies a token using the key from the JWKS endpoint.
 func (p *JWKSProvider) ParseVerify(token string) (*Token, error) {
+	if p == nil {
+		return nil, errors.New("jwks provider is nil")
+	}
+
 	unverifiedToken, err := jwt.ParseNoVerify([]byte(token))
 	if err != nil {
 		return nil, errors.Join(errkit.ErrTokenInvalid, fmt.Errorf("parse token header: %w", err))
@@ -172,12 +195,14 @@ func (p *JWKSProvider) ParseVerify(token string) (*Token, error) {
 		raw: raw,
 	}
 
-	if err := raw.DecodeClaims(&t); err != nil {
-		return nil, errors.Join(errkit.ErrTokenInvalid, fmt.Errorf("decode claims: %w", err))
+	decodeClaimsErr := raw.DecodeClaims(&t)
+	if decodeClaimsErr != nil {
+		return nil, errors.Join(errkit.ErrTokenInvalid, fmt.Errorf("decode claims: %w", decodeClaimsErr))
 	}
 
-	if err := t.Validate(time.Now()); err != nil {
-		return nil, err
+	validateErr := t.Validate(time.Now())
+	if validateErr != nil {
+		return nil, validateErr
 	}
 
 	return &t, nil
@@ -185,6 +210,10 @@ func (p *JWKSProvider) ParseVerify(token string) (*Token, error) {
 
 // ParseVerifyClaims parses and verifies a token using the key from the JWKS endpoint.
 func (p *JWKSProvider) ParseVerifyClaims(token string, claims any) error {
+	if p == nil {
+		return errors.New("jwks provider is nil")
+	}
+
 	unverifiedToken, err := jwt.ParseNoVerify([]byte(token))
 	if err != nil {
 		return errors.Join(errkit.ErrTokenInvalid, fmt.Errorf("parse token header: %w", err))
@@ -205,13 +234,16 @@ func (p *JWKSProvider) ParseVerifyClaims(token string, claims any) error {
 		return errors.Join(errkit.ErrTokenInvalid, fmt.Errorf("parse token: %w", err))
 	}
 
-	if err := raw.DecodeClaims(claims); err != nil {
-		return errors.Join(errkit.ErrTokenInvalid, fmt.Errorf("decode custom claims: %w", err))
+	decodeCustomClaimsErr := raw.DecodeClaims(claims)
+	if decodeCustomClaimsErr != nil {
+		return errors.Join(errkit.ErrTokenInvalid, fmt.Errorf("decode custom claims: %w", decodeCustomClaimsErr))
 	}
 
 	t := Token{}
-	if err := raw.DecodeClaims(&t); err != nil {
-		return errors.Join(errkit.ErrTokenInvalid, fmt.Errorf("decode standard claims: %w", err))
+
+	decodeStandardClaimsErr := raw.DecodeClaims(&t)
+	if decodeStandardClaimsErr != nil {
+		return errors.Join(errkit.ErrTokenInvalid, fmt.Errorf("decode standard claims: %w", decodeStandardClaimsErr))
 	}
 
 	return t.Validate(time.Now())
@@ -219,8 +251,13 @@ func (p *JWKSProvider) ParseVerifyClaims(token string, claims any) error {
 
 // Verify verifies a token.
 func (p *JWKSProvider) Verify(token string) error {
-	if _, err := p.ParseVerify(token); err != nil {
-		return err
+	if p == nil {
+		return errors.New("jwks provider is nil")
+	}
+
+	_, parseErr := p.ParseVerify(token)
+	if parseErr != nil {
+		return parseErr
 	}
 
 	return nil

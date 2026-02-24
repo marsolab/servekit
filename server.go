@@ -65,8 +65,9 @@ func (s *Server) Serve(ctx context.Context) error {
 
 	for name, listener := range s.listeners {
 		g.Go(func() error {
-			if err := listener.Serve(listenerCtx); err != nil {
-				return fmt.Errorf("listener %s failed: %w", name, err)
+			serveErr := listener.Serve(listenerCtx)
+			if serveErr != nil {
+				return fmt.Errorf("listener %s failed: %w", name, serveErr)
 			}
 
 			return nil
@@ -77,10 +78,12 @@ func (s *Server) Serve(ctx context.Context) error {
 		s.logger.Error("Server failed",
 			slog.String("error", err.Error()),
 		)
+
 		return err
 	}
 
 	s.logger.Info("All listeners shut down successfully")
+
 	return nil
 }
 

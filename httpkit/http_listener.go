@@ -39,6 +39,8 @@ const (
 
 	// shutdownTimeout represents server default shutdown timeout.
 	shutdownTimeout = 5 * time.Second
+
+	logKeyAddress = "address"
 )
 
 // ListenerOptionConstraint represents a constraint for generic types
@@ -59,6 +61,7 @@ type ListenerOption[T ListenerOptionConstraint] func(o *T)
 func NewListenerOption[T ListenerOptionConstraint](options ...ListenerOption[T]) []ListenerOption[T] {
 	o := make([]ListenerOption[T], 0, len(options))
 	o = append(o, options...)
+
 	return o
 }
 
@@ -313,7 +316,7 @@ func (l *ListenerHTTP) Serve(ctx context.Context) error {
 		protocol := tern.OP(l.enableTLS, "HTTPS", "HTTP")
 
 		l.logger.Info(protocol+" listener started to listen",
-			slog.String("address", l.server.Addr),
+			slog.String(logKeyAddress, l.server.Addr),
 		)
 
 		if err := l.serveFunc(); err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -325,7 +328,7 @@ func (l *ListenerHTTP) Serve(ctx context.Context) error {
 
 	if err := g.Wait(); err != nil {
 		l.logger.Error("HTTP listener failed to serve",
-			slog.String("address", l.server.Addr),
+			slog.String(logKeyAddress, l.server.Addr),
 			slog.String("error", err.Error()),
 		)
 
@@ -349,6 +352,7 @@ func (l *ListenerHTTP) healthCheckHandler(w http.ResponseWriter, r *http.Request
 	if l.health == nil {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
+
 		return
 	}
 
@@ -356,6 +360,7 @@ func (l *ListenerHTTP) healthCheckHandler(w http.ResponseWriter, r *http.Request
 		ctxkit.GetLogErrHook(r.Context())(err)
 
 		http.Error(w, http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable)
+
 		return
 	}
 
@@ -372,12 +377,14 @@ func (l *ListenerHTTP) healthCheckHandlerJSON(w http.ResponseWriter, r *http.Req
 			ctxkit.GetLogErrHook(r.Context())(errors.Join(err, encodeErr))
 
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+
 			return
 		}
 
 		ctxkit.GetLogErrHook(r.Context())(err)
 
 		http.Error(w, http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable)
+
 		return
 	}
 
@@ -390,6 +397,7 @@ func (l *ListenerHTTP) healthCheckHandlerJSON(w http.ResponseWriter, r *http.Req
 		ctxkit.GetLogErrHook(r.Context())(err)
 
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+
 		return
 	}
 }
@@ -414,6 +422,7 @@ func (l *ListenerHTTP) healthCheckHandlerHTML(w http.ResponseWriter, r *http.Req
 		)
 
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+
 		return
 	}
 
@@ -442,7 +451,7 @@ func (l *ListenerHTTP) handleShutdown(ctx context.Context) error {
 	<-ctx.Done()
 
 	l.logger.Info("Shutting down the HTTP listener",
-		slog.String("address", l.server.Addr),
+		slog.String(logKeyAddress, l.server.Addr),
 	)
 
 	shutdownCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), shutdownTimeout)
@@ -450,19 +459,19 @@ func (l *ListenerHTTP) handleShutdown(ctx context.Context) error {
 
 	if err := l.server.Shutdown(shutdownCtx); err != nil {
 		l.logger.Warn("HTTP server graceful shutdown timeout exceeded, forcing close",
-			slog.String("address", l.server.Addr),
+			slog.String(logKeyAddress, l.server.Addr),
 			slog.Duration("timeout", shutdownTimeout),
 		)
 
 		if closeErr := l.server.Close(); closeErr != nil {
 			l.logger.Error("Failed to force close HTTP listener",
-				slog.String("address", l.server.Addr),
+				slog.String(logKeyAddress, l.server.Addr),
 				slog.String("error", closeErr.Error()),
 			)
 		}
 
 		l.logger.Error("Failed to shutdown HTTP listener gracefully",
-			slog.String("address", l.server.Addr),
+			slog.String(logKeyAddress, l.server.Addr),
 			slog.String("error", err.Error()),
 		)
 
@@ -470,7 +479,7 @@ func (l *ListenerHTTP) handleShutdown(ctx context.Context) error {
 	}
 
 	l.logger.Info("HTTP server gracefully stopped",
-		slog.String("address", l.server.Addr),
+		slog.String(logKeyAddress, l.server.Addr),
 	)
 
 	return nil
@@ -558,47 +567,57 @@ func (l *ListenerHTTP) configureTLS(cfg ListenerConfig) error {
 	return nil
 }
 
+//nolint:cyclop // Health route setup is configuration-branchy but small and explicit.
 func (l *ListenerHTTP) configureHealth(cfg ListenerConfig) error {
-	if cfg.health.enable {
-		if cfg.health.healthChecker != nil {
-			l.health = cfg.health.healthChecker
-		}
-
-		if cfg.health.route == "" {
-			return errors.New("empty health route")
-		}
-
-		if !strings.HasPrefix(cfg.health.route, "/") {
-			return fmt.Errorf(
-				"invalid health route: %q (route should start with '/' slash)",
-				cfg.health.route,
-			)
-		}
-
-		l.router.Route(cfg.health.route, func(health chi.Router) {
-			if cfg.health.accessLogsEnabled {
-				health.Use(LoggingMiddleware(l.logger))
-			}
-
-			if cfg.health.metricsForEndpointEnabled {
-				health.Use(MetricsMiddleware())
-			}
-
-			switch cfg.health.healthReport {
-			case healthReportJSON:
-				health.Get("/", l.healthCheckHandlerJSON)
-				health.Head("/", l.healthCheckHandler)
-
-			case healthReportHTML:
-				health.Get("/", l.healthCheckHandlerHTML)
-				health.Head("/", l.healthCheckHandler)
-
-			case healthReportNone:
-				health.Get("/", l.healthCheckHandler)
-				health.Head("/", l.healthCheckHandler)
-			}
-		})
+	if !cfg.health.enable {
+		return nil
 	}
+
+	if cfg.health.healthChecker != nil {
+		l.health = cfg.health.healthChecker
+	}
+
+	if cfg.health.route == "" {
+		return errors.New("empty health route")
+	}
+
+	if !strings.HasPrefix(cfg.health.route, "/") {
+		return fmt.Errorf(
+			"invalid health route: %q (route should start with '/' slash)",
+			cfg.health.route,
+		)
+	}
+
+	l.router.Route(cfg.health.route, func(health chi.Router) {
+		if cfg.health.accessLogsEnabled {
+			health.Use(LoggingMiddleware(l.logger))
+		}
+
+		if cfg.health.metricsForEndpointEnabled {
+			health.Use(MetricsMiddleware())
+		}
+
+		switch cfg.health.healthReport {
+		case healthReportJSON:
+			health.Get("/", l.healthCheckHandlerJSON)
+			health.Head("/", l.healthCheckHandler)
+
+		case healthReportHTML:
+			health.Get("/", l.healthCheckHandlerHTML)
+			health.Head("/", l.healthCheckHandler)
+
+		case healthReportNone:
+			health.Get("/", l.healthCheckHandler)
+			health.Head("/", l.healthCheckHandler)
+
+		default:
+			l.logger.Warn("Unknown health report format, using plain handler",
+				slog.Int("health_report", int(cfg.health.healthReport)),
+			)
+			health.Get("/", l.healthCheckHandler)
+			health.Head("/", l.healthCheckHandler)
+		}
+	})
 
 	return nil
 }

@@ -1,4 +1,4 @@
-package redisconn
+package rediskit
 
 import (
 	"context"

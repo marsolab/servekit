@@ -23,6 +23,13 @@ func TestJWKSProvider(t *testing.T) {
 
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	td.CmpNil(t, err)
+	if err != nil {
+		t.Fatalf("generate rsa key: %v", err)
+	}
+
+	if privateKey == nil {
+		t.Fatal("generate rsa key: nil key")
+	}
 
 	kid := "test-kid"
 	keyStore := jwtkit.KeyStore{
@@ -46,6 +53,13 @@ func TestJWKSProvider(t *testing.T) {
 
 	jwksProvider, err := jwtkit.NewJWKSProvider(server.URL, 1*time.Minute)
 	td.CmpNil(t, err)
+	if err != nil {
+		t.Fatalf("create jwks provider: %v", err)
+	}
+
+	if jwksProvider == nil {
+		t.Fatal("create jwks provider: nil provider")
+	}
 
 	signer, err := jwt.NewSignerRS(jwt.RS256, privateKey)
 	td.CmpNil(t, err)
@@ -64,6 +78,13 @@ func TestJWKSProvider(t *testing.T) {
 
 	parsedToken, err := jwksProvider.ParseVerify(token.String())
 	td.CmpNil(t, err)
+	if err != nil {
+		t.Fatalf("parse verify token: %v", err)
+	}
+
+	if parsedToken == nil {
+		t.Fatal("parse verify token: nil token")
+	}
 
 	td.Cmp(t, parsedToken.Subject, "test-subject")
 }

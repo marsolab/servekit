@@ -67,8 +67,9 @@ func New(addr string, options ...Option) (*Conn, error) {
 		return nil, fmt.Errorf("mongo: connection failed: %w", err)
 	}
 
-	if err := client.Ping(ctx, connOptions.readPref); err != nil {
-		return nil, fmt.Errorf("mongo: ping failed: %w", err)
+	pingErr := client.Ping(ctx, connOptions.readPref)
+	if pingErr != nil {
+		return nil, fmt.Errorf("mongo: ping failed: %w", pingErr)
 	}
 
 	return &Conn{Client: client}, nil
@@ -83,8 +84,9 @@ func (c *Conn) Close() error {
 
 // Health implements the health.Checker interface for MongoDB connection.
 func (c *Conn) Health(ctx context.Context) error {
-	if err := c.Ping(ctx, readpref.Primary()); err != nil {
-		return fmt.Errorf("mongo: ping database: %w", err)
+	pingErr := c.Ping(ctx, readpref.Primary())
+	if pingErr != nil {
+		return fmt.Errorf("mongo: ping database: %w", pingErr)
 	}
 
 	return nil

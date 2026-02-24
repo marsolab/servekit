@@ -66,8 +66,9 @@ func (s *ResendSender) Send(ctx context.Context, message mailkit.Message) error 
 		msgToSend.Tags = append(msgToSend.Tags, resendTag)
 	}
 
-	if _, err := s.client.Emails.SendWithContext(ctx, &msgToSend); err != nil {
-		return fmt.Errorf("resend: sending email: %w", err)
+	_, sendErr := s.client.Emails.SendWithContext(ctx, &msgToSend)
+	if sendErr != nil {
+		return fmt.Errorf("resend: sending email: %w", sendErr)
 	}
 
 	return nil

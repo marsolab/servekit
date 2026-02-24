@@ -42,13 +42,15 @@ func New(connstr string) (*Conn, error) {
 // Close closes the connection to the Postgres database.
 func (c *Conn) Close() error {
 	c.Pool.Close()
+
 	return nil
 }
 
 // Health checks if the connection is healthy.
 func (c *Conn) Health(ctx context.Context) error {
-	if err := c.Ping(ctx); err != nil {
-		return fmt.Errorf("postgres: healthcheck failed: %w", err)
+	pingErr := c.Ping(ctx)
+	if pingErr != nil {
+		return fmt.Errorf("postgres: healthcheck failed: %w", pingErr)
 	}
 
 	return nil
@@ -73,7 +75,7 @@ func PgError(err error) (bool, error) {
 			return true, fmt.Errorf("postgres: %w: %s", errkit.ErrAlreadyExists, pgErr.Detail)
 
 		default:
-			return true, errkit.Error(fmt.Sprintf("postgres: %s", pgErr.Error()))
+			return true, errkit.Error("postgres: " + pgErr.Error())
 		}
 	}
 

@@ -23,14 +23,16 @@ type StreamInterceptor = grpc.StreamServerInterceptor
 // LoggingInterceptor is a gRPC unary server interceptor that logs method calls and their durations. It takes a logger
 // instance as input and returns a UnaryServerInterceptor function.
 func LoggingInterceptor(logger *slog.Logger) grpc.UnaryServerInterceptor {
-	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
+	return func(
+		ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler,
+	) (any, error) {
 		start := time.Now().UTC()
 
 		var reqErr error
 
 		ctx = ctxkit.SetLogErrHook(ctx, func(err error) { reqErr = err })
 
-		resp, err = handler(ctx, req)
+		resp, err := handler(ctx, req)
 		if err != nil {
 			if s, ok := status.FromError(err); ok {
 				logger.Error("RPC",
@@ -63,11 +65,13 @@ func LoggingInterceptor(logger *slog.Logger) grpc.UnaryServerInterceptor {
 }
 
 func MetricsInterceptor() grpc.UnaryServerInterceptor {
-	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
+	return func(
+		ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler,
+	) (any, error) {
 		start := time.Now()
 		code := 0
 
-		resp, err = handler(ctx, req)
+		resp, err := handler(ctx, req)
 		if err != nil {
 			if s, ok := status.FromError(err); ok {
 				code = int(s.Code())
