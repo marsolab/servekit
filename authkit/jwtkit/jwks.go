@@ -73,15 +73,39 @@ func (p *JWKSProvider) refresh(ctx context.Context) error {
 		return nil
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, p.jwksURL, http.NoBody)
-	if err != nil {
-		return fmt.Errorf("create jwks request: %w", err)
+	if err := p.fetchJWKS(ctx); err != nil {
+		return fmt.Errorf("fetch jwks: %w", err)
+	}
+
+	// Reset the key cache to avoid potential stale data.
+	p.keyCache = make(map[string]*rsa.PublicKey)
+
+	for _, key := range p.keyStore.Keys {
+		if key.Kty == "RSA" {
+			pubKey, err := p.convertKey(key.E, key.N)
+			if err != nil {
+				continue
+			}
+
+			p.keyCache[key.Kid] = pubKey
+		}
+	}
+
+	p.lastFetch = time.Now()
+
+	return nil
+}
+
+func (p *JWKSProvider) fetchJWKS(ctx context.Context) error {
+	req, newRequestErr := http.NewRequestWithContext(ctx, http.MethodGet, p.jwksURL, http.NoBody)
+	if newRequestErr != nil {
+		return fmt.Errorf("create jwks request: %w", newRequestErr)
 	}
 
 	//nolint:gosec // JWKS URL is configured by the application, not arbitrary user input.
-	resp, err := p.client.Do(req)
-	if err != nil {
-		return fmt.Errorf("fetch jwks: %w", err)
+	resp, doErr := p.client.Do(req)
+	if doErr != nil {
+		return fmt.Errorf("fetch jwks: %w", doErr)
 	}
 
 	if resp == nil {
@@ -94,28 +118,9 @@ func (p *JWKSProvider) refresh(ctx context.Context) error {
 		return fmt.Errorf("fetch jwks: unexpected status code: %d", resp.StatusCode)
 	}
 
-	var keyStore KeyStore
-
-	decodeErr := json.NewDecoder(resp.Body).Decode(&keyStore)
-	if decodeErr != nil {
-		return fmt.Errorf("decode jwks: %w", decodeErr)
+	if err := json.NewDecoder(resp.Body).Decode(&p.keyStore); err != nil {
+		return fmt.Errorf("decode jwks: %w", err)
 	}
-
-	p.keyStore = &keyStore
-	p.keyCache = make(map[string]*rsa.PublicKey)
-
-	for _, key := range keyStore.Keys {
-		if key.Kty == "RSA" {
-			pubKey, err := p.convertKey(key.E, key.N)
-			if err != nil {
-				continue
-			}
-
-			p.keyCache[key.Kid] = pubKey
-		}
-	}
-
-	p.lastFetch = time.Now()
 
 	return nil
 }
