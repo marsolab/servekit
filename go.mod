@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	github.com/VictoriaMetrics/metrics v1.41.2
-	github.com/benbjohnson/litestream v0.5.8
+	github.com/benbjohnson/litestream v0.5.9
 	github.com/cristalhq/jwt/v5 v5.4.0
 	github.com/getsentry/sentry-go v0.42.0
 	github.com/go-chi/chi/v5 v5.2.5
