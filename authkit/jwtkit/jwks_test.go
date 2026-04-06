@@ -14,6 +14,7 @@ import (
 
 	"github.com/cristalhq/jwt/v5"
 	"github.com/marsolab/servekit/authkit/jwtkit"
+	"github.com/marsolab/servekit/errkit"
 	"github.com/marsolab/servekit/idkit"
 	"github.com/maxatome/go-testdeep/td"
 )
@@ -87,6 +88,123 @@ func TestJWKSProvider(t *testing.T) {
 	}
 
 	td.Cmp(t, parsedToken.Subject, "test-subject")
+
+	t.Run("Sign returns error", func(t *testing.T) {
+		_, err := jwksProvider.Sign(&jwtkit.Token{})
+		td.CmpNotNil(t, err)
+		td.CmpContains(t, err.Error(), "signing is not supported")
+	})
+
+	t.Run("Verify with valid token", func(t *testing.T) {
+		err := jwksProvider.Verify(token.String())
+		td.CmpNil(t, err)
+	})
+
+	t.Run("Verify with malformed token", func(t *testing.T) {
+		err := jwksProvider.Verify("not.a.valid.token")
+		td.Cmp(t, err, td.ErrorIs(errkit.ErrTokenInvalid))
+	})
+
+	t.Run("Verify with expired token", func(t *testing.T) {
+		expiredClaims := &jwt.RegisteredClaims{
+			ID:        idkit.XID(),
+			Subject:   "test-subject",
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(-1 * time.Hour)),
+			IssuedAt:  jwt.NewNumericDate(time.Now().Add(-2 * time.Hour)),
+		}
+		expiredToken, buildErr := builder.Build(expiredClaims)
+		td.CmpNil(t, buildErr)
+
+		err := jwksProvider.Verify(expiredToken.String())
+		td.Cmp(t, err, td.ErrorIs(errkit.ErrTokenExpired))
+	})
+
+	t.Run("ParseVerifyClaims with valid token", func(t *testing.T) {
+		type CustomClaims struct {
+			jwt.RegisteredClaims
+			Role string `json:"role"`
+		}
+
+		customClaims := &CustomClaims{
+			RegisteredClaims: jwt.RegisteredClaims{
+				ID:        idkit.XID(),
+				Subject:   "custom-subject",
+				ExpiresAt: jwt.NewNumericDate(time.Now().Add(1 * time.Hour)),
+				NotBefore: jwt.NewNumericDate(time.Now()),
+				IssuedAt:  jwt.NewNumericDate(time.Now()),
+			},
+			Role: "admin",
+		}
+		customToken, buildErr := builder.Build(customClaims)
+		td.CmpNil(t, buildErr)
+
+		parsed := CustomClaims{}
+		err := jwksProvider.ParseVerifyClaims(customToken.String(), &parsed)
+		td.CmpNil(t, err)
+		td.Cmp(t, parsed.Role, "admin")
+		td.Cmp(t, parsed.Subject, "custom-subject")
+	})
+
+	t.Run("ParseVerifyClaims with malformed token", func(t *testing.T) {
+		type CustomClaims struct {
+			jwt.RegisteredClaims
+		}
+
+		parsed := CustomClaims{}
+		err := jwksProvider.ParseVerifyClaims("invalid-token", &parsed)
+		td.Cmp(t, err, td.ErrorIs(errkit.ErrTokenInvalid))
+	})
+
+	t.Run("ParseVerifyClaims with expired token", func(t *testing.T) {
+		type CustomClaims struct {
+			jwt.RegisteredClaims
+		}
+
+		expiredClaims := &CustomClaims{
+			RegisteredClaims: jwt.RegisteredClaims{
+				ID:        idkit.XID(),
+				ExpiresAt: jwt.NewNumericDate(time.Now().Add(-1 * time.Hour)),
+				IssuedAt:  jwt.NewNumericDate(time.Now().Add(-2 * time.Hour)),
+			},
+		}
+		expiredToken, buildErr := builder.Build(expiredClaims)
+		td.CmpNil(t, buildErr)
+
+		parsed := CustomClaims{}
+		err := jwksProvider.ParseVerifyClaims(expiredToken.String(), &parsed)
+		td.Cmp(t, err, td.ErrorIs(errkit.ErrTokenExpired))
+	})
+
+	t.Run("ParseVerify with missing kid", func(t *testing.T) {
+		// Build a token without a kid header.
+		noKidSigner, signerErr := jwt.NewSignerRS(jwt.RS256, privateKey)
+		td.CmpNil(t, signerErr)
+
+		noKidBuilder := jwt.NewBuilder(noKidSigner)
+		noKidClaims := &jwt.RegisteredClaims{
+			ID:        idkit.XID(),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(1 * time.Hour)),
+		}
+		noKidToken, buildErr := noKidBuilder.Build(noKidClaims)
+		td.CmpNil(t, buildErr)
+
+		_, err := jwksProvider.ParseVerify(noKidToken.String())
+		td.Cmp(t, err, td.ErrorIs(errkit.ErrTokenInvalid))
+	})
+
+	t.Run("ParseVerify with unknown kid", func(t *testing.T) {
+		// Build a token with an unknown kid.
+		unknownKidBuilder := jwt.NewBuilder(signer, jwt.WithKeyID("unknown-kid"))
+		unknownKidClaims := &jwt.RegisteredClaims{
+			ID:        idkit.XID(),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(1 * time.Hour)),
+		}
+		unknownKidToken, buildErr := unknownKidBuilder.Build(unknownKidClaims)
+		td.CmpNil(t, buildErr)
+
+		_, err := jwksProvider.ParseVerify(unknownKidToken.String())
+		td.Cmp(t, err, td.ErrorIs(errkit.ErrTokenInvalid))
+	})
 }
 
 func ExampleNewJWKSProvider() {

@@ -119,7 +119,7 @@ type ResponseOptions struct {
 // default values and applies the given options to it.
 func NewResponseOptions(w http.ResponseWriter, options ...ResponseOption) *ResponseOptions {
 	r := ResponseOptions{
-		statusCode:  http.StatusOK,
+		statusCode:  0,
 		headers:     make(http.Header),
 		reportError: false,
 	}
@@ -150,13 +150,21 @@ type HTTPErrorResponder func(w http.ResponseWriter, err error, options ...Respon
 // Status writes an HTTP status to the w http.ResponseWriter.
 func Status(w http.ResponseWriter, _ *http.Request, statusCode int, options ...ResponseOption) {
 	o := NewResponseOptions(w, options...)
-	o.statusCode = statusCode
+
+	if o.statusCode == 0 {
+		o.statusCode = statusCode
+	}
+
 	w.WriteHeader(o.statusCode)
 }
 
 // JSON tries to encode v into json representation and write it to response writer.
 func JSON(w http.ResponseWriter, r *http.Request, v any, options ...ResponseOption) {
 	o := NewResponseOptions(w, options...)
+
+	if o.statusCode == 0 {
+		o.statusCode = http.StatusOK
+	}
 
 	// Buffer the JSON first to detect encoding errors before writing headers.
 	var buf bytes.Buffer
@@ -191,6 +199,10 @@ func JSON(w http.ResponseWriter, r *http.Request, v any, options ...ResponseOpti
 func HTML(w http.ResponseWriter, r *http.Request, v []byte, options ...ResponseOption) {
 	o := NewResponseOptions(w, options...)
 
+	if o.statusCode == 0 {
+		o.statusCode = http.StatusOK
+	}
+
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(o.statusCode)
 
@@ -210,6 +222,10 @@ func HTML(w http.ResponseWriter, r *http.Request, v []byte, options ...ResponseO
 // TEXT writes plain text content to the response writer.
 func TEXT(w http.ResponseWriter, r *http.Request, v []byte, options ...ResponseOption) {
 	o := NewResponseOptions(w, options...)
+
+	if o.statusCode == 0 {
+		o.statusCode = http.StatusOK
+	}
 
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(o.statusCode)
@@ -258,6 +274,10 @@ func TemplateHTML(
 ) {
 	o := NewResponseOptions(w, options...)
 
+	if o.statusCode == 0 {
+		o.statusCode = http.StatusOK
+	}
+
 	// Get the template first.
 	templ, err := htmlTemplater.Template(r.Context(), td.Name)
 	if err != nil {
@@ -280,6 +300,10 @@ func TemplateHTML(
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 
 		return
+	}
+
+	if o.statusCode == 0 {
+		o.statusCode = http.StatusOK
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")

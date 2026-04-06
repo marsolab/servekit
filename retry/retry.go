@@ -200,7 +200,7 @@ func Do(ctx context.Context, fn func(ctx context.Context) error, options ...Opti
 
 		default:
 			if err := fn(ctx); err != nil {
-				var rErr RetryableError
+				var rErr *RetryableError
 
 				if !errors.As(err, &rErr) {
 					return err

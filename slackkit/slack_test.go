@@ -131,22 +131,20 @@ func TestNewNotification(t *testing.T) {
 		td.Cmp(t, err.Error(), td.Contains("block 1 is invalid"))
 	})
 
-	t.Run("divider block not yet supported", func(t *testing.T) {
+	t.Run("divider block", func(t *testing.T) {
 		divider := NewDivider()
 		notif, err := NewNotification(divider)
-		td.Cmp(t, err, td.NotNil())
-		td.Cmp(t, notif, td.Nil())
-		td.Cmp(t, err.Error(), td.Contains("block 0 is invalid"))
-		td.Cmp(t, err.Error(), td.Contains("invalid block type"))
+		td.CmpNil(t, err)
+		td.Cmp(t, notif, td.NotNil())
+		td.Cmp(t, len(notif.Blocks), 1)
 	})
 
-	t.Run("section block not yet supported", func(t *testing.T) {
+	t.Run("section block", func(t *testing.T) {
 		section := NewSection("Section", false)
 		notif, err := NewNotification(section)
-		td.Cmp(t, err, td.NotNil())
-		td.Cmp(t, notif, td.Nil())
-		td.Cmp(t, err.Error(), td.Contains("block 0 is invalid"))
-		td.Cmp(t, err.Error(), td.Contains("invalid block type"))
+		td.CmpNil(t, err)
+		td.Cmp(t, notif, td.NotNil())
+		td.Cmp(t, len(notif.Blocks), 1)
 	})
 }
 
