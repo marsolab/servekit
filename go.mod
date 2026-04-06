@@ -15,7 +15,7 @@ require (
 	github.com/jackc/pgx/v5 v5.9.1
 	github.com/jackc/tern/v2 v2.3.6
 	github.com/lmittmann/tint v1.1.3
-	github.com/mattn/go-sqlite3 v1.14.40
+	github.com/mattn/go-sqlite3 v1.14.41
 	github.com/maxatome/go-testdeep v1.15.0
 	github.com/oklog/ulid/v2 v2.1.1
 	github.com/redis/go-redis/v9 v9.18.0
