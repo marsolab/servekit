@@ -96,17 +96,15 @@ func TestWithConnectionPool(t *testing.T) {
 
 func TestWithAsyncInsert(t *testing.T) {
 	tests := map[string]struct {
-		asyncInsert        bool
-		waitForAsyncInsert bool
-		maxDataSize        int
-		busyTimeout        int
-		wantSettings       clickhouse.Settings
+		opts         []AsyncInsertOption
+		wantSettings clickhouse.Settings
 	}{
-		"all enabled": {
-			asyncInsert:        true,
-			waitForAsyncInsert: true,
-			maxDataSize:        10485760,
-			busyTimeout:        5000,
+		"all options": {
+			opts: []AsyncInsertOption{
+				WaitForInsert(),
+				MaxDataSize(10485760),
+				BusyTimeout(5000),
+			},
 			wantSettings: clickhouse.Settings{
 				"async_insert":                 1,
 				"wait_for_async_insert":        1,
@@ -114,34 +112,30 @@ func TestWithAsyncInsert(t *testing.T) {
 				"async_insert_busy_timeout_ms": 5000,
 			},
 		},
-		"all disabled": {
-			asyncInsert:        false,
-			waitForAsyncInsert: false,
-			maxDataSize:        0,
-			busyTimeout:        0,
-			wantSettings: clickhouse.Settings{
-				"async_insert":          0,
-				"wait_for_async_insert": 0,
-			},
-		},
-		"async enabled without wait": {
-			asyncInsert:        true,
-			waitForAsyncInsert: false,
-			maxDataSize:        0,
-			busyTimeout:        0,
+		"no options": {
+			opts: nil,
 			wantSettings: clickhouse.Settings{
 				"async_insert":          1,
 				"wait_for_async_insert": 0,
 			},
 		},
-		"zero size and timeout are not set": {
-			asyncInsert:        true,
-			waitForAsyncInsert: true,
-			maxDataSize:        0,
-			busyTimeout:        0,
+		"only wait for insert": {
+			opts: []AsyncInsertOption{WaitForInsert()},
 			wantSettings: clickhouse.Settings{
 				"async_insert":          1,
 				"wait_for_async_insert": 1,
+			},
+		},
+		"only data size and timeout": {
+			opts: []AsyncInsertOption{
+				MaxDataSize(1048576),
+				BusyTimeout(3000),
+			},
+			wantSettings: clickhouse.Settings{
+				"async_insert":                 1,
+				"wait_for_async_insert":        0,
+				"async_insert_max_data_size":   1048576,
+				"async_insert_busy_timeout_ms": 3000,
 			},
 		},
 	}
@@ -149,7 +143,7 @@ func TestWithAsyncInsert(t *testing.T) {
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
 			var opts clickhouse.Options
-			WithAsyncInsert(tc.asyncInsert, tc.waitForAsyncInsert, tc.maxDataSize, tc.busyTimeout)(&opts)
+			WithAsyncInsert(tc.opts...)(&opts)
 			td.Cmp(t, opts.Settings, tc.wantSettings)
 		})
 	}
@@ -159,7 +153,7 @@ func TestWithAsyncInsert_PreservesExistingSettings(t *testing.T) {
 	var opts clickhouse.Options
 	opts.Settings = clickhouse.Settings{"existing_key": "value"}
 
-	WithAsyncInsert(true, false, 0, 0)(&opts)
+	WithAsyncInsert()(&opts)
 
 	td.Cmp(t, opts.Settings["existing_key"], "value")
 	td.Cmp(t, opts.Settings["async_insert"], 1)

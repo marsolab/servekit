@@ -42,42 +42,59 @@ func WithConnectionPool(maxOpenConns, maxIdleConns int) Option {
 	}
 }
 
+// AsyncInsertConfig holds configuration for server-side asynchronous inserts.
+type AsyncInsertConfig struct {
+	waitForInsert bool
+	maxDataSize   int
+	busyTimeout   int
+}
+
+// AsyncInsertOption configures the async insert behavior.
+type AsyncInsertOption func(c *AsyncInsertConfig)
+
+// WaitForInsert enables waiting for server-side flush, ensuring durability.
+func WaitForInsert() AsyncInsertOption {
+	return func(c *AsyncInsertConfig) { c.waitForInsert = true }
+}
+
+// MaxDataSize sets the buffer size in bytes before flush (e.g., 10485760 = 10MB).
+func MaxDataSize(size int) AsyncInsertOption {
+	return func(c *AsyncInsertConfig) { c.maxDataSize = size }
+}
+
+// BusyTimeout sets the max time in ms to wait before flush (e.g., 5000 = 5 seconds).
+func BusyTimeout(timeout int) AsyncInsertOption {
+	return func(c *AsyncInsertConfig) { c.busyTimeout = timeout }
+}
+
 // WithAsyncInsert enables asynchronous inserts on the server side.
 // This reduces write IOPS by batching multiple insert operations on the ClickHouse server.
-// Async inserts replace client-side batching - the server handles all buffering and flushing.
-// Recommended settings:
-//   - asyncInsert: true (enable feature)
-//   - waitForAsyncInsert: true (wait for server-side flush, ensures durability)
-//   - maxDataSize: buffer size in bytes before flush (e.g., 10485760 = 10MB)
-//   - busyTimeout: max time in ms to wait before flush (e.g., 5000 = 5 seconds)
-func WithAsyncInsert(asyncInsert, waitForAsyncInsert bool, maxDataSize, busyTimeout int) Option {
+// Async inserts replace client-side batching — the server handles all buffering and flushing.
+func WithAsyncInsert(opts ...AsyncInsertOption) Option {
+	var cfg AsyncInsertConfig
+	for _, o := range opts {
+		o(&cfg)
+	}
+
 	return func(options *clickhouse.Options) {
 		if options.Settings == nil {
 			options.Settings = clickhouse.Settings{}
 		}
 
-		// Enable async insert feature.
-		if asyncInsert {
-			options.Settings["async_insert"] = 1
-		} else {
-			options.Settings["async_insert"] = 0
-		}
+		options.Settings["async_insert"] = 1
 
-		// Wait for async insert to complete (recommended for durability).
-		if waitForAsyncInsert {
+		if cfg.waitForInsert {
 			options.Settings["wait_for_async_insert"] = 1
 		} else {
 			options.Settings["wait_for_async_insert"] = 0
 		}
 
-		// Set buffer size threshold for flush.
-		if maxDataSize > 0 {
-			options.Settings["async_insert_max_data_size"] = maxDataSize
+		if cfg.maxDataSize > 0 {
+			options.Settings["async_insert_max_data_size"] = cfg.maxDataSize
 		}
 
-		// Set time threshold for flush.
-		if busyTimeout > 0 {
-			options.Settings["async_insert_busy_timeout_ms"] = busyTimeout
+		if cfg.busyTimeout > 0 {
+			options.Settings["async_insert_busy_timeout_ms"] = cfg.busyTimeout
 		}
 	}
 }
