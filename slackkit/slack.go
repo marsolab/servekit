@@ -88,25 +88,7 @@ func (b *Block) validate() error {
 		return nil
 
 	case Section:
-		if b.Text == nil {
-			return ErrNilText
-		}
-
-		if b.Text.Style != nil {
-			return ErrInvalidBlockTextStyle
-		}
-
-		if b.Text.Type != PlainText && b.Text.Type != Markdown {
-			return ErrInvalidBlockTextType
-		}
-
-		if b.Text.Type == Markdown && b.Text.Emoji != nil {
-			return ErrInvalidBlockTextEmoji
-		}
-
-		if b.Text.Text == "" {
-			return ErrNilText
-		}
+		return b.validateSection()
 
 	default:
 		return ErrInvalidBlockType
@@ -133,6 +115,29 @@ func (b *Block) validateHeader() error {
 	return nil
 }
 
+func (b *Block) validateSection() error {
+	if b.Text == nil {
+		return ErrNilText
+	}
+
+	if b.Text.Style != nil {
+		return ErrInvalidBlockTextStyle
+	}
+
+	if b.Text.Type != PlainText && b.Text.Type != Markdown {
+		return ErrInvalidBlockTextType
+	}
+
+	if b.Text.Type == Markdown && b.Text.Emoji != nil {
+		return ErrInvalidBlockTextEmoji
+	}
+
+	if b.Text.Text == "" {
+		return ErrNilText
+	}
+
+	return nil
+}
 
 // Text is a single text block of a notification.
 type Text struct {

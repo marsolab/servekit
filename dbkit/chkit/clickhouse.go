@@ -35,6 +35,7 @@ func WithConnectionPool(maxOpenConns, maxIdleConns int) Option {
 		if maxOpenConns > 0 {
 			options.MaxOpenConns = maxOpenConns
 		}
+
 		if maxIdleConns > 0 {
 			options.MaxIdleConns = maxIdleConns
 		}
@@ -82,8 +83,7 @@ func WithAsyncInsert(asyncInsert, waitForAsyncInsert bool, maxDataSize, busyTime
 }
 
 // New establishes connection with Clickhouse server.
-// Returns a pointer to a new instance of Conn struct
-// TODO: add optional functions to configure clickhouse.Options.
+// Returns a pointer to a new instance of Conn struct.
 func New(addr string, opts ...Option) (*Conn, error) {
 	options := clickhouse.Options{
 		Addr: []string{addr},

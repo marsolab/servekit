@@ -240,18 +240,26 @@ func ErrorHTTP(w http.ResponseWriter, r *http.Request, err error, options ...Res
 	errHTTPResponder(w, err, options...)
 }
 
-// TemplateHTML generates an HTML template response for the given name and data.
+// TemplateData holds the template name and data for rendering an HTML template.
+type TemplateData struct {
+	// Name is the template name to look up via HTMLTemplateProvider.
+	Name string
+	// Data is the data passed to template.Execute.
+	Data any
+}
+
+// TemplateHTML generates an HTML template response for the given template data.
 // It sets the Content-Type header to "text/html; charset=utf-8" and writes the
 // response with the specified status code. If the template execution fails, an
 // error will be logged and a 500 Internal Server Error response will be sent.
 // Additional options can be passed to modify the response using the Option functions.
-func TemplateHTML( //nolint:revive // argument-limit is acceptable here.
-	w http.ResponseWriter, r *http.Request, name string, v any, options ...ResponseOption,
+func TemplateHTML(
+	w http.ResponseWriter, r *http.Request, td TemplateData, options ...ResponseOption,
 ) {
 	o := NewResponseOptions(w, options...)
 
 	// Get the template first.
-	templ, err := htmlTemplater.Template(r.Context(), name)
+	templ, err := htmlTemplater.Template(r.Context(), td.Name)
 	if err != nil {
 		if hook := ctxkit.GetLogErrHook(r.Context()); hook != nil {
 			hook(err)
@@ -264,7 +272,7 @@ func TemplateHTML( //nolint:revive // argument-limit is acceptable here.
 
 	// Buffer the template output to detect execution errors before writing headers.
 	var buf bytes.Buffer
-	if err := templ.Execute(&buf, v); err != nil {
+	if err := templ.Execute(&buf, td.Data); err != nil {
 		if hook := ctxkit.GetLogErrHook(r.Context()); hook != nil {
 			hook(err)
 		}
