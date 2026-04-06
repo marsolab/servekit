@@ -80,6 +80,7 @@ func (b *Block) validate() error {
 		return ErrNilBlock
 	}
 
+	//nolint:exhaustive // Divider and Section are intentionally not supported yet.
 	switch b.Type {
 	case Header:
 		return b.validateHeader()
@@ -108,7 +109,6 @@ func (b *Block) validateHeader() error {
 
 	return nil
 }
-
 
 // Text is a single text block of a notification.
 type Text struct {
