@@ -9,7 +9,7 @@ import (
 	"io/fs"
 	"os"
 	"path"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 )
@@ -22,14 +22,14 @@ const (
 			version    int       default 0                 not null,
 			created_at timestamp default current_timestamp not null,
 			updated_at timestamp default current_timestamp not null,
-		
+
 			constraint schema_version_pk
 				primary key (id)
 		);
-		
+
 		create unique index if not exists id_uindex
 			on schema_version (id);
-		
+
 		insert into schema_version default
 		values;
 	`
@@ -203,8 +203,17 @@ func (e *Evolver) loadMutations() ([]Mutation, error) {
 		return nil, fmt.Errorf("load mutations: %w", readErr)
 	}
 
-	sort.Slice(entries, func(i, j int) bool {
-		return entries[i].Name() < entries[j].Name()
+	slices.SortFunc(entries, func(i, j fs.DirEntry) int {
+		switch {
+		case i.Name() == j.Name():
+			return 0
+
+		case i.Name() < j.Name():
+			return -1
+
+		default:
+			return 1
+		}
 	})
 
 	evolutions := make([]Mutation, 0, len(entries))

@@ -624,6 +624,14 @@ $RECYCLE.BIN/
 # Windows shortcuts
 *.lnk
 
+### Claude Code hooks
+.claude/.checks-passed
+.claude/.go-dirty
+.claude/.session-start
+.claude/.go-snapshot
+.claude/.go-snapshot-start
+.claude/*.local.md
+
 ### macOS template
 # General
 .DS_Store

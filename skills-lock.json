@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "skills": {
+    "go-dev": {
+      "source": "marsolab/skills",
+      "sourceType": "github",
+      "computedHash": "a55a2f5c481ab9e7b641aed6e9886c6fc1a6ae220de909dd36505bd10477feff"
+    }
+  }
+}
