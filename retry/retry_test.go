@@ -411,3 +411,16 @@ func TestDo_ContextDeadlineExceeded(t *testing.T) {
 
 	td.Cmp(t, errors.Is(err, context.DeadlineExceeded), true)
 }
+
+func TestDo_ValueRetryableError(t *testing.T) {
+	// Callers that construct RetryableError{...} value literals directly
+	// should also be retried by Do.
+	calls := 0
+	err := Do(context.Background(), func(_ context.Context) error {
+		calls++
+		return RetryableError{err: errors.New("value retryable")}
+	}, WithMaxAttempts(3))
+
+	td.Cmp(t, errors.Is(err, ErrRetryLimitReached), true)
+	td.Cmp(t, calls, 3)
+}
