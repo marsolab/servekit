@@ -1,4 +1,4 @@
-package clickconn
+package chkit
 
 import (
 	"context"
@@ -145,19 +145,23 @@ func NewDBSQL(addr string, opts ...Option) (*sql.DB, error) {
 	return db, nil
 }
 
+// errBox wraps an error so that both nil and non-nil errors share the same
+// concrete type when stored in atomic.Value (which requires type consistency).
+type errBox struct{ err error }
+
 // Conn represents connection to ClickHouse database.
 type Conn struct {
-	atomic.Value
+	health atomic.Value
 	driver.Conn
 }
 
-func (c *Conn) MarkUnhealthy(err error) { c.Store(err) }
-func (c *Conn) MarkHealthy()            { c.Store(nil) }
+func (c *Conn) MarkUnhealthy(err error) { c.health.Store(errBox{err: err}) }
+func (c *Conn) MarkHealthy()            { c.health.Store(errBox{}) }
 
 func (c *Conn) Health(ctx context.Context) error {
-	if v := c.Load(); v != nil {
-		if err, ok := v.(error); ok && err != nil {
-			return fmt.Errorf("clickhouse: health check failed: %w", err)
+	if v := c.health.Load(); v != nil {
+		if box, ok := v.(errBox); ok && box.err != nil {
+			return fmt.Errorf("clickhouse: health check failed: %w", box.err)
 		}
 	}
 
