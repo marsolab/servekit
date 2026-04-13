@@ -391,6 +391,13 @@ func (t *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 		// Here we check if received error represents url.Error which
 		// in some cases can't be retried.
 		if doErr != nil {
+			// If the error is marked as non-retryable (e.g. CheckRedirect
+			// rejection), surface the underlying error without replaying.
+			var nonRetry *nonRetryableError
+			if errors.As(doErr, &nonRetry) {
+				return nil, nonRetry.err
+			}
+
 			// If the circuit breaker is open, stop retrying immediately.
 			var cbErr circuit.Error
 			if errors.As(doErr, &cbErr) {
@@ -473,16 +480,34 @@ func (t *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	return res, nil
 }
 
+// nonRetryableError wraps an error so the retry loop will surface it to the
+// caller without replaying the request. Used for errors from http.Client.Do
+// that return alongside a (closed) response — e.g. CheckRedirect failures.
+type nonRetryableError struct{ err error }
+
+func (e *nonRetryableError) Error() string { return e.err.Error() }
+func (e *nonRetryableError) Unwrap() error { return e.err }
+
 // doRequest executes the HTTP request, optionally wrapping it with a circuit breaker.
 // If no circuit breaker is configured, it delegates directly to the underlying client.
 // 4xx responses are not counted as circuit failures. 5xx responses are counted as
 // failures but the response is still returned so the retry loop can inspect headers.
 //
-//nolint:bodyclose,wrapcheck // Body is closed by the caller; errors are surfaced to the retry loop.
+// When http.Client.Do returns both a response and an error (e.g. a custom
+// CheckRedirect policy rejecting a redirect), the response body is already
+// closed by net/http. The error is wrapped as a nonRetryableError so the
+// retry loop does not replay the request.
+//
+//nolint:bodyclose,wrapcheck // Body is closed by the caller or by net/http; errors are surfaced to the retry loop.
 func (t *roundTripper) doRequest(ctx context.Context, req *http.Request) (*http.Response, error) {
 	if t.circuitBreaker == nil {
 		//nolint:gosec // Request URL comes from the caller of the HTTP client and is an expected capability.
-		return t.client.Do(req)
+		res, doErr := t.client.Do(req)
+		if doErr != nil && res != nil {
+			return nil, &nonRetryableError{err: doErr}
+		}
+
+		return res, doErr
 	}
 
 	var (
@@ -507,9 +532,15 @@ func (t *roundTripper) doRequest(ctx context.Context, req *http.Request) (*http.
 		return nil
 	})
 
-	// If the underlying Do call failed, surface that error to the caller. The
-	// response (if any) from a failed Do is not safe to use — its body may be
-	// closed (e.g. on CheckRedirect failure).
+	// If the underlying Do call failed with a response attached (e.g.
+	// CheckRedirect rejection), the body is already closed — surface the
+	// error as non-retryable so the retry loop does not replay the request.
+	if doErr != nil && res != nil {
+		return nil, &nonRetryableError{err: doErr}
+	}
+
+	// If Do failed without a response, surface the transport-level error so
+	// the retry loop can apply its usual retry policy.
 	if doErr != nil {
 		return nil, doErr
 	}
