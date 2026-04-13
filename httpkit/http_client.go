@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/cep21/circuit/v3"
 	"github.com/marsolab/servekit/retry"
 )
 
@@ -127,6 +128,10 @@ type Config struct {
 	// readBufferSize controls the size of the read buffer for the underlying
 	// http.Transport.
 	readBufferSize int
+
+	// circuitBreaker represents optional circuit breaker that wraps
+	// individual request attempts to prevent cascading failures.
+	circuitBreaker *circuit.Circuit
 }
 
 func (c *Config) client() *http.Client {
@@ -269,6 +274,17 @@ func WithRetries(options ...retry.Option) ClientOption {
 	}
 }
 
+// WithCircuitBreaker configures the HTTP client to use a circuit breaker
+// that wraps individual request attempts. When the circuit is open, requests
+// fail immediately without being sent to the server. The circuit breaker
+// counts 5xx responses as failures but treats 4xx responses as successes
+// (they do not count toward opening the circuit).
+func WithCircuitBreaker(cb *circuit.Circuit) ClientOption {
+	return func(config *Config) {
+		config.circuitBreaker = cb
+	}
+}
+
 // NewClient takes options to configure and return
 // a pointer to a new instance of http.Client.
 func NewClient(options ...ClientOption) *http.Client {
@@ -295,8 +311,9 @@ func NewClient(options ...ClientOption) *http.Client {
 	}
 
 	tripper := roundTripper{
-		backoff: cfg.retryBackoff,
-		client:  cfg.client(),
+		backoff:        cfg.retryBackoff,
+		client:         cfg.client(),
+		circuitBreaker: cfg.circuitBreaker,
 	}
 
 	client := http.Client{
@@ -311,9 +328,10 @@ func NewClient(options ...ClientOption) *http.Client {
 // like request hedging, circuit breaker, and retries with different
 // backoff strategies.
 type roundTripper struct {
-	maxAttempts uint
-	backoff     retry.Backoff
-	client      *http.Client
+	maxAttempts    uint
+	backoff        retry.Backoff
+	client         *http.Client
+	circuitBreaker *circuit.Circuit
 }
 
 //nolint:cyclop,funlen,gocognit,gocyclo,nestif,revive // Retry state machine is intentionally explicit.
@@ -359,8 +377,8 @@ func (t *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 		}
 
 		var doErr error
-		//nolint:gosec // Request URL comes from the caller of the HTTP client and is an expected capability.
-		res, doErr = t.client.Do(req)
+
+		res, doErr = t.doRequest(req.Context(), req)
 
 		// If the bodyReader is not nil we try rewind the read position to the beginning
 		// because it is already read at this point.
@@ -373,6 +391,19 @@ func (t *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 		// Here we check if received error represents url.Error which
 		// in some cases can't be retried.
 		if doErr != nil {
+			// If the error is marked as non-retryable (e.g. CheckRedirect
+			// rejection), surface the underlying error without replaying.
+			var nonRetry *nonRetryableError
+			if errors.As(doErr, &nonRetry) {
+				return nil, nonRetry.err
+			}
+
+			// If the circuit breaker is open, stop retrying immediately.
+			var cbErr circuit.Error
+			if errors.As(doErr, &cbErr) {
+				return nil, doErr
+			}
+
 			var urlErr *url.Error
 			if errors.As(doErr, &urlErr) {
 				// If the error was occurred due to too many redirects
@@ -447,6 +478,81 @@ func (t *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 
 	return res, nil
+}
+
+// nonRetryableError wraps an error so the retry loop will surface it to the
+// caller without replaying the request. Used for errors from http.Client.Do
+// that return alongside a (closed) response — e.g. CheckRedirect failures.
+type nonRetryableError struct{ err error }
+
+func (e *nonRetryableError) Error() string { return e.err.Error() }
+func (e *nonRetryableError) Unwrap() error { return e.err }
+
+// doRequest executes the HTTP request, optionally wrapping it with a circuit breaker.
+// If no circuit breaker is configured, it delegates directly to the underlying client.
+// 4xx responses are not counted as circuit failures. 5xx responses are counted as
+// failures but the response is still returned so the retry loop can inspect headers.
+//
+// When http.Client.Do returns both a response and an error (e.g. a custom
+// CheckRedirect policy rejecting a redirect), the response body is already
+// closed by net/http. The error is wrapped as a nonRetryableError so the
+// retry loop does not replay the request.
+//
+//nolint:bodyclose,wrapcheck // Body is closed by the caller or by net/http; errors are surfaced to the retry loop.
+func (t *roundTripper) doRequest(ctx context.Context, req *http.Request) (*http.Response, error) {
+	if t.circuitBreaker == nil {
+		//nolint:gosec // Request URL comes from the caller of the HTTP client and is an expected capability.
+		res, doErr := t.client.Do(req)
+		if doErr != nil && res != nil {
+			return nil, &nonRetryableError{err: doErr}
+		}
+
+		return res, doErr
+	}
+
+	var (
+		res   *http.Response
+		doErr error
+	)
+
+	cbErr := t.circuitBreaker.Run(ctx, func(runCtx context.Context) error {
+		// Use the context passed in by the circuit breaker so its execution
+		// timeout can cancel the in-flight HTTP call.
+		//nolint:gosec // Request URL comes from the caller of the HTTP client and is an expected capability.
+		res, doErr = t.client.Do(req.WithContext(runCtx))
+		if doErr != nil {
+			return doErr
+		}
+
+		// 5xx responses count as circuit failures.
+		if res.StatusCode >= http.StatusInternalServerError {
+			return fmt.Errorf("server responded with status %d", res.StatusCode)
+		}
+
+		return nil
+	})
+
+	// If the underlying Do call failed with a response attached (e.g.
+	// CheckRedirect rejection), the body is already closed — surface the
+	// error as non-retryable so the retry loop does not replay the request.
+	if doErr != nil && res != nil {
+		return nil, &nonRetryableError{err: doErr}
+	}
+
+	// If Do failed without a response, surface the transport-level error so
+	// the retry loop can apply its usual retry policy.
+	if doErr != nil {
+		return nil, doErr
+	}
+
+	// If we got a response (even with a synthetic 5xx circuit error), return
+	// the response so the retry loop can inspect status codes for Retry-After, etc.
+	if res != nil {
+		return res, nil
+	}
+
+	// No response means the circuit was open.
+	return nil, cbErr
 }
 
 // sleepWithContext sleeps for the specified duration, but returns early if context is canceled.

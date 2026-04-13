@@ -2,13 +2,19 @@ package httpkit
 
 import (
 	"context"
+	"errors"
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/cep21/circuit/v3"
+	"github.com/cep21/circuit/v3/closers/simplelogic"
 	td "github.com/maxatome/go-testdeep"
+
+	"github.com/marsolab/servekit/retry"
 )
 
 func TestNewClient_Defaults(t *testing.T) {
@@ -199,6 +205,165 @@ func TestRoundTripper_ContextCanceled(t *testing.T) {
 	defer server.Close()
 
 	client := NewClient()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // Cancel immediately.
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, server.URL, nil)
+	td.CmpNoError(t, err, "creating request should not error.")
+
+	_, err = client.Do(req)
+	td.CmpError(t, err, "request with canceled context should error.")
+}
+
+func newTestCircuit(t *testing.T, name string, errorThreshold int64) *circuit.Circuit {
+	t.Helper()
+
+	return circuit.NewCircuitFromConfig(name, circuit.Config{
+		General: circuit.GeneralConfig{
+			ClosedToOpenFactory: simplelogic.ConsecutiveErrOpenerFactory(simplelogic.ConfigConsecutiveErrOpener{
+				ErrorThreshold: errorThreshold,
+			}),
+		},
+		Execution: circuit.ExecutionConfig{
+			Timeout:               5 * time.Second,
+			MaxConcurrentRequests: 100,
+		},
+	})
+}
+
+func TestNewClient_WithCircuitBreaker(t *testing.T) {
+	cb := newTestCircuit(t, "TestNewClient_WithCircuitBreaker", 1)
+
+	client := NewClient(WithCircuitBreaker(cb))
+
+	td.CmpNot(t, client, nil, "client with circuit breaker should not be nil.")
+}
+
+func TestRoundTripper_CircuitBreaker_Success(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	cb := newTestCircuit(t, "TestRoundTripper_CircuitBreaker_Success", 1)
+	client := NewClient(WithCircuitBreaker(cb))
+
+	resp, err := client.Get(server.URL)
+
+	td.CmpNoError(t, err, "request should succeed through circuit breaker.")
+	td.CmpNot(t, resp, nil, "response should not be nil.")
+	td.Cmp(t, resp.StatusCode, http.StatusOK, "status code should be 200.")
+
+	resp.Body.Close()
+}
+
+func TestRoundTripper_CircuitBreaker_ServerError_OpensCircuit(t *testing.T) {
+	var requestCount int64
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		atomic.AddInt64(&requestCount, 1)
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	cb := newTestCircuit(t, "TestRoundTripper_CircuitBreaker_ServerError_OpensCircuit", 1)
+	client := NewClient(
+		WithCircuitBreaker(cb),
+		// Use a tiny retry config so the retry loop's backoff path has a Backoff.
+		WithRetries(
+			retry.WithMaxAttempts(0),
+			retry.WithBackoff(retry.StaticBackoff(0)),
+		),
+	)
+
+	// First request: server returns 500, circuit records a failure.
+	resp1, err1 := client.Get(server.URL)
+	td.CmpNoError(t, err1, "first request should return response even on 500.")
+	td.Cmp(t, resp1.StatusCode, http.StatusInternalServerError, "first response should be 500.")
+	resp1.Body.Close()
+
+	// Second request: circuit should be open, request should fail fast
+	// without reaching the server.
+	beforeCount := atomic.LoadInt64(&requestCount)
+
+	_, err2 := client.Get(server.URL)
+	td.CmpError(t, err2, "second request should fail with circuit open error.")
+
+	// Verify the server was not contacted on the second call.
+	afterCount := atomic.LoadInt64(&requestCount)
+	td.Cmp(t, afterCount, beforeCount, "server should not be contacted when circuit is open.")
+
+	// Verify the error is a circuit error indicating open state.
+	var cbErr circuit.Error
+	td.CmpTrue(t, errors.As(err2, &cbErr), "error should be circuit.Error.")
+	td.CmpTrue(t, cbErr.CircuitOpen(), "error should indicate circuit is open.")
+}
+
+func TestRoundTripper_CircuitBreaker_ClientError_NoOpen(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+	}))
+	defer server.Close()
+
+	// Circuit opens after 1 consecutive failure. 4xx should not count as a failure.
+	cb := newTestCircuit(t, "TestRoundTripper_CircuitBreaker_ClientError_NoOpen", 1)
+	client := NewClient(WithCircuitBreaker(cb))
+
+	// Make several 4xx requests.
+	for range 5 {
+		resp, err := client.Get(server.URL)
+		td.CmpNoError(t, err, "4xx response should not produce circuit error.")
+		td.Cmp(t, resp.StatusCode, http.StatusBadRequest, "response should be 400.")
+		resp.Body.Close()
+	}
+
+	// Circuit should still be closed -- verify by making another request.
+	resp, err := client.Get(server.URL)
+	td.CmpNoError(t, err, "circuit should still be closed after 4xx responses.")
+	td.Cmp(t, resp.StatusCode, http.StatusBadRequest, "response should be 400.")
+	resp.Body.Close()
+}
+
+func TestRoundTripper_CircuitBreaker_OpenCircuit_StopsRetries(t *testing.T) {
+	var requestCount int64
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		atomic.AddInt64(&requestCount, 1)
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	cb := newTestCircuit(t, "TestRoundTripper_CircuitBreaker_OpenCircuit_StopsRetries", 1)
+	client := NewClient(
+		WithCircuitBreaker(cb),
+		WithRetries(
+			retry.WithMaxAttempts(5),
+			retry.WithBackoff(retry.StaticBackoff(0)),
+		),
+	)
+
+	resp, err := client.Get(server.URL)
+	// We expect either a circuit-open error or a final 500 response.
+	if err == nil {
+		resp.Body.Close()
+	}
+
+	// The server should have been contacted at most once before the circuit opened.
+	// With ErrorThreshold=1, after the first 500 the circuit opens and subsequent
+	// retries fail fast without contacting the server.
+	count := atomic.LoadInt64(&requestCount)
+	td.CmpLt(t, count, int64(5), "retries should stop once circuit opens.")
+}
+
+func TestRoundTripper_CircuitBreaker_ContextCanceled(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	cb := newTestCircuit(t, "TestRoundTripper_CircuitBreaker_ContextCanceled", 1)
+	client := NewClient(WithCircuitBreaker(cb))
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // Cancel immediately.
