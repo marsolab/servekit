@@ -485,10 +485,12 @@ func (t *roundTripper) doRequest(ctx context.Context, req *http.Request) (*http.
 		return t.client.Do(req)
 	}
 
-	var res *http.Response
+	var (
+		res   *http.Response
+		doErr error
+	)
 
 	cbErr := t.circuitBreaker.Run(ctx, func(runCtx context.Context) error {
-		var doErr error
 		// Use the context passed in by the circuit breaker so its execution
 		// timeout can cancel the in-flight HTTP call.
 		//nolint:gosec // Request URL comes from the caller of the HTTP client and is an expected capability.
@@ -505,13 +507,20 @@ func (t *roundTripper) doRequest(ctx context.Context, req *http.Request) (*http.
 		return nil
 	})
 
-	// If we got a response (even with a circuit error for 5xx), return the response
-	// so the retry loop can inspect status codes for Retry-After, etc.
+	// If the underlying Do call failed, surface that error to the caller. The
+	// response (if any) from a failed Do is not safe to use — its body may be
+	// closed (e.g. on CheckRedirect failure).
+	if doErr != nil {
+		return nil, doErr
+	}
+
+	// If we got a response (even with a synthetic 5xx circuit error), return
+	// the response so the retry loop can inspect status codes for Retry-After, etc.
 	if res != nil {
 		return res, nil
 	}
 
-	// No response means either the circuit was open or the request itself failed.
+	// No response means the circuit was open.
 	return nil, cbErr
 }
 
