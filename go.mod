@@ -8,7 +8,7 @@ require (
 	github.com/benbjohnson/litestream v0.5.11
 	github.com/cep21/circuit/v3 v3.2.2
 	github.com/cristalhq/jwt/v5 v5.4.0
-	github.com/getsentry/sentry-go v0.45.1
+	github.com/getsentry/sentry-go v0.46.0
 	github.com/go-chi/chi/v5 v5.2.5
 	github.com/go-chi/cors v1.2.2
 	github.com/heartwilltell/hc v0.2.2
