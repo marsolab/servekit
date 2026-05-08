@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
-	"time"
 
 	"golang.org/x/sync/errgroup"
 )
@@ -85,14 +84,4 @@ func (s *Server) Serve(ctx context.Context) error {
 	s.logger.Info("All listeners shut down successfully")
 
 	return nil
-}
-
-// Shutdown gracefully shuts down all registered listeners within the given timeout.
-func (s *Server) Shutdown(timeout time.Duration) error {
-	s.logger.Info("Initiating graceful shutdown of all listeners")
-
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-
-	return s.Serve(ctx)
 }
