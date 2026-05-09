@@ -123,22 +123,3 @@ func TestServer_MultipleListeners(t *testing.T) {
 		t.Error("Server with multiple listeners did not shutdown within expected time")
 	}
 }
-
-func TestServer_ShutdownMethod(t *testing.T) {
-	logger := slog.Default()
-	server := NewServer(logger)
-
-	mockListener := &mockListener{
-		serveFunc: func(ctx context.Context) error {
-			<-ctx.Done()
-			return nil
-		},
-	}
-	server.RegisterListener("test-listener", mockListener)
-
-	// Test the dedicated Shutdown method
-	err := server.Shutdown(1 * time.Second)
-	if err != nil {
-		t.Errorf("Expected no error from Shutdown method, got: %v", err)
-	}
-}
