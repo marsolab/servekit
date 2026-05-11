@@ -11,6 +11,9 @@ import (
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 )
 
+// defaultDatabase is the default ClickHouse database and username.
+const defaultDatabase = "default"
+
 // Option configures the ClickHouse client options.
 type Option func(options *clickhouse.Options)
 
@@ -105,8 +108,8 @@ func New(addr string, opts ...Option) (*Conn, error) {
 	options := clickhouse.Options{
 		Addr: []string{addr},
 		Auth: clickhouse.Auth{
-			Database: "default",
-			Username: "default",
+			Database: defaultDatabase,
+			Username: defaultDatabase,
 			Password: "",
 		},
 	}
@@ -143,8 +146,8 @@ func NewDBSQL(addr string, opts ...Option) (*sql.DB, error) {
 	options := clickhouse.Options{
 		Addr: []string{addr},
 		Auth: clickhouse.Auth{
-			Database: "default",
-			Username: "default",
+			Database: defaultDatabase,
+			Username: defaultDatabase,
 			Password: "",
 		},
 	}
