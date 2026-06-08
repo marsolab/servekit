@@ -5,7 +5,7 @@ go 1.25.0
 require (
 	github.com/ClickHouse/clickhouse-go/v2 v2.46.0
 	github.com/VictoriaMetrics/metrics v1.43.2
-	github.com/benbjohnson/litestream v0.5.11
+	github.com/benbjohnson/litestream v0.5.12
 	github.com/cep21/circuit/v3 v3.2.2
 	github.com/cristalhq/jwt/v5 v5.4.0
 	github.com/getsentry/sentry-go v0.46.2
