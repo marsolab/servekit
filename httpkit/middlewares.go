@@ -1,6 +1,7 @@
 package httpkit
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -23,6 +24,24 @@ func RedirectSlashesMiddleware() Middleware    { return middleware.RedirectSlash
 func ProfilerMiddleware() http.Handler         { return middleware.Profiler() }
 func CORSMiddleware(o cors.Options) Middleware { return cors.Handler(o) }
 
+// noAccessLogKey is the context key used to signal that access logging should be suppressed.
+type noAccessLogKey struct{}
+
+// NoAccessLogMiddleware suppresses access logging for the current request when
+// LoggingMiddleware is present in the chain. It works by setting a flag that
+// LoggingMiddleware checks after the handler returns.
+func NoAccessLogMiddleware() Middleware {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if ptr, ok := r.Context().Value(noAccessLogKey{}).(*bool); ok {
+				*ptr = true
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
 // LoggingMiddleware represents logging middleware.
 func LoggingMiddleware(logger *slog.Logger) Middleware {
 	return func(next http.Handler) http.Handler {
@@ -31,11 +50,18 @@ func LoggingMiddleware(logger *slog.Logger) Middleware {
 
 			var reqErr error
 
+			skip := false
+
 			ctx := ctxkit.SetLogErrHook(r.Context(), func(err error) { reqErr = err })
+			ctx = context.WithValue(ctx, noAccessLogKey{}, &skip)
 
 			ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
 
 			next.ServeHTTP(ww, r.WithContext(ctx))
+
+			if skip {
+				return
+			}
 
 			status := ww.Status()
 

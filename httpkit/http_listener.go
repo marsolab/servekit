@@ -591,6 +591,8 @@ func (l *ListenerHTTP) configureHealth(cfg ListenerConfig) error {
 	l.router.Route(cfg.health.route, func(health chi.Router) {
 		if cfg.health.accessLogsEnabled {
 			health.Use(LoggingMiddleware(l.logger))
+		} else {
+			health.Use(NoAccessLogMiddleware())
 		}
 
 		if cfg.health.metricsForEndpointEnabled {
@@ -623,29 +625,33 @@ func (l *ListenerHTTP) configureHealth(cfg ListenerConfig) error {
 }
 
 func (l *ListenerHTTP) configureMetrics(cfg ListenerConfig) error {
-	if cfg.metrics.enable {
-		if cfg.metrics.route == "" {
-			return errors.New("empty metrics route")
-		}
-
-		if !strings.HasPrefix(cfg.metrics.route, "/") {
-			return fmt.Errorf("invalid metrics route: %q (route should start with '/' slash)",
-				cfg.metrics.route,
-			)
-		}
-
-		l.router.Route(cfg.metrics.route, func(metrics chi.Router) {
-			if cfg.metrics.accessLogsEnabled {
-				metrics.Use(LoggingMiddleware(l.logger))
-			}
-
-			if cfg.metrics.metricsForEndpointEnabled {
-				metrics.Use(MetricsMiddleware())
-			}
-
-			metrics.Get("/", l.metricsHandler)
-		})
+	if !cfg.metrics.enable {
+		return nil
 	}
+
+	if cfg.metrics.route == "" {
+		return errors.New("empty metrics route")
+	}
+
+	if !strings.HasPrefix(cfg.metrics.route, "/") {
+		return fmt.Errorf("invalid metrics route: %q (route should start with '/' slash)",
+			cfg.metrics.route,
+		)
+	}
+
+	l.router.Route(cfg.metrics.route, func(metrics chi.Router) {
+		if cfg.metrics.accessLogsEnabled {
+			metrics.Use(LoggingMiddleware(l.logger))
+		} else {
+			metrics.Use(NoAccessLogMiddleware())
+		}
+
+		if cfg.metrics.metricsForEndpointEnabled {
+			metrics.Use(MetricsMiddleware())
+		}
+
+		metrics.Get("/", l.metricsHandler)
+	})
 
 	return nil
 }
@@ -666,6 +672,8 @@ func (l *ListenerHTTP) configureProfiler(cfg ListenerConfig) error {
 		l.router.Route(cfg.profiler.route, func(profiler chi.Router) {
 			if cfg.profiler.accessLogsEnabled {
 				profiler.Use(LoggingMiddleware(l.logger))
+			} else {
+				profiler.Use(NoAccessLogMiddleware())
 			}
 
 			profiler.Mount("/", middleware.Profiler())
