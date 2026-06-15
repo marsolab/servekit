@@ -19,7 +19,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.45
 	github.com/maxatome/go-testdeep v1.15.0
 	github.com/oklog/ulid/v2 v2.1.1
-	github.com/redis/go-redis/v9 v9.20.0
+	github.com/redis/go-redis/v9 v9.20.1
 	github.com/resend/resend-go/v2 v2.28.0
 	github.com/rs/xid v1.6.0
 	go.mongodb.org/mongo-driver v1.17.9
