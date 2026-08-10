@@ -14,7 +14,7 @@ require (
 	github.com/heartwilltell/hc v0.2.2
 	github.com/jackc/pgconn v1.14.3
 	github.com/jackc/pgx/v5 v5.10.0
-	github.com/jackc/tern/v2 v2.4.1
+	github.com/jackc/tern/v2 v2.4.2
 	github.com/lmittmann/tint v1.2.0
 	github.com/mattn/go-sqlite3 v1.14.48
 	github.com/maxatome/go-testdeep v1.15.0
