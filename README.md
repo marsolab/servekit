@@ -117,6 +117,7 @@ All database packages implement the `hc.HealthChecker` interface for health chec
 | [`retry`](retry/) | Retry mechanisms with configurable backoff strategies |
 | [`mailkit`](mailkit/) | Email sending via [Resend](https://github.com/resend/resend-go/v2) API |
 | [`slackkit`](slackkit/) | Slack notifications |
+| [`tgkit`](tgkit/) | Telegram bots, channel administration, Mini App authentication, invoices, and subscriptions |
 | [`tern`](tern/) | Ternary operator helper |
 
 ## HTTP Middleware

@@ -11,6 +11,7 @@ require (
 	github.com/getsentry/sentry-go v0.48.0
 	github.com/go-chi/chi/v5 v5.3.1
 	github.com/go-chi/cors v1.2.2
+	github.com/go-telegram/bot v1.23.0
 	github.com/heartwilltell/hc v0.2.2
 	github.com/jackc/pgconn v1.14.3
 	github.com/jackc/pgx/v5 v5.10.0
