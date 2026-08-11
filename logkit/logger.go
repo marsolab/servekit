@@ -104,7 +104,7 @@ func New(options ...Option) *slog.Logger {
 		handler = slog.NewJSONHandler(o.writer, &handlerOptions)
 
 	default:
-		handler = tint.NewHandler(o.writer, &tint.Options{
+		handler = tint.NewTextHandler(o.writer, &tint.Options{
 			AddSource:  o.withSource,
 			Level:      o.level,
 			TimeFormat: o.timeFormat,
