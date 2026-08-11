@@ -31,6 +31,8 @@ const (
 	ModeWebhook
 )
 
+const maxWebhookSecretTokenLength = 256
+
 // Handler handles a Telegram update.
 type Handler = telegram.HandlerFunc
 
@@ -49,9 +51,10 @@ type HTTPClient interface {
 type Option func(*botConfig)
 
 type botConfig struct {
-	mode            Mode
-	telegramOptions []telegram.Option
-	err             error
+	mode              Mode
+	webhookConfigured bool
+	telegramOptions   []telegram.Option
+	err               error
 }
 
 // Bot is a ServeKit-compatible Telegram bot.
@@ -93,6 +96,10 @@ func New(token string, options ...Option) (*Bot, error) {
 		return nil, fmt.Errorf("%w: %d", ErrInvalidMode, config.mode)
 	}
 
+	if config.mode == ModeWebhook && !config.webhookConfigured {
+		return nil, fmt.Errorf("%w: webhook mode requires WithWebhook", ErrInvalidBotConfig)
+	}
+
 	client, err := telegram.New(token, config.telegramOptions...)
 	if err != nil {
 		return nil, fmt.Errorf("create Telegram bot: %w", err)
@@ -104,7 +111,8 @@ func New(token string, options ...Option) (*Bot, error) {
 	}, nil
 }
 
-// WithMode selects how the bot receives Telegram updates.
+// WithMode selects how the bot receives Telegram updates. Webhook mode also
+// requires WithWebhook to configure a validated secret token.
 func WithMode(mode Mode) Option {
 	return func(config *botConfig) {
 		config.mode = mode
@@ -112,10 +120,21 @@ func WithMode(mode Mode) Option {
 }
 
 // WithWebhook selects webhook mode and configures the secret Telegram must
-// include with webhook requests.
+// include with webhook requests. The token must contain 1-256 ASCII letters,
+// digits, underscores, or hyphens.
 func WithWebhook(secretToken string) Option {
 	return func(config *botConfig) {
+		if !validWebhookSecretToken(secretToken) {
+			config.setError(fmt.Errorf(
+				"%w: webhook secret token must contain 1-256 ASCII letters, digits, underscores, or hyphens",
+				ErrInvalidBotConfig,
+			))
+
+			return
+		}
+
 		config.mode = ModeWebhook
+		config.webhookConfigured = true
 		config.telegramOptions = append(
 			config.telegramOptions,
 			telegram.WithWebhookSecretToken(secretToken),
@@ -267,6 +286,20 @@ func withTelegramOption(option telegram.Option) Option {
 	return func(config *botConfig) {
 		config.telegramOptions = append(config.telegramOptions, option)
 	}
+}
+
+func validWebhookSecretToken(value string) bool {
+	if value == "" || len(value) > maxWebhookSecretTokenLength {
+		return false
+	}
+
+	for _, character := range value {
+		if character != '_' && character != '-' && !isASCIILetterOrDigit(character) {
+			return false
+		}
+	}
+
+	return true
 }
 
 func (c *botConfig) setError(err error) {

@@ -196,8 +196,33 @@ func TestMiniAppLink(t *testing.T) {
 			mode:       MiniAppModeCompact,
 			want:       "https://t.me/example_bot/store?startapp=order+123&mode=compact",
 		},
-		"invalid username": {
+		"minimum length username": {
+			username: "mybot",
+			want:     "https://t.me/mybot?startapp",
+		},
+		"maximum length username": {
+			username: strings.Repeat("a", maxBotUsernameLength-len(botUsernameSuffix)) + botUsernameSuffix,
+			want: "https://t.me/" +
+				strings.Repeat("a", maxBotUsernameLength-len(botUsernameSuffix)) + botUsernameSuffix + "?startapp",
+		},
+		"mixed-case suffix": {
+			username: "ExampleBot",
+			want:     "https://t.me/ExampleBot?startapp",
+		},
+		"invalid username character": {
 			username: "bad/name",
+			wantErr:  true,
+		},
+		"username too short": {
+			username: "x",
+			wantErr:  true,
+		},
+		"username too long": {
+			username: strings.Repeat("a", maxBotUsernameLength-len(botUsernameSuffix)+1) + botUsernameSuffix,
+			wantErr:  true,
+		},
+		"username without bot suffix": {
+			username: "example_user",
 			wantErr:  true,
 		},
 		"invalid short name": {

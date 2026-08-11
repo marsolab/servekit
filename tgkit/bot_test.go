@@ -36,6 +36,12 @@ func TestNew(t *testing.T) {
 			options: []Option{WithSkipIdentityCheck(), WithWebhook("secret")},
 			mode:    ModeWebhook,
 		},
+		"webhook mode without secret": {
+			token:     testBotToken,
+			options:   []Option{WithSkipIdentityCheck(), WithMode(ModeWebhook)},
+			wantError: true,
+			wantErrIs: ErrInvalidBotConfig,
+		},
 		"empty token": {
 			options:   []Option{WithSkipIdentityCheck()},
 			wantError: true,
@@ -85,6 +91,79 @@ func TestNew(t *testing.T) {
 				t.Error("Telegram() = nil")
 			}
 		})
+	}
+}
+
+func TestWithWebhookValidatesSecretToken(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]struct {
+		secret    string
+		wantError bool
+	}{
+		"minimum length": {
+			secret: "a",
+		},
+		"maximum length": {
+			secret: strings.Repeat("a", maxWebhookSecretTokenLength),
+		},
+		"allowed symbols": {
+			secret: "AZaz09_-",
+		},
+		"empty": {
+			wantError: true,
+		},
+		"too long": {
+			secret:    strings.Repeat("a", maxWebhookSecretTokenLength+1),
+			wantError: true,
+		},
+		"invalid character": {
+			secret:    "secret.token",
+			wantError: true,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			_, err := New(testBotToken, WithSkipIdentityCheck(), WithWebhook(test.secret))
+			if test.wantError {
+				if !errors.Is(err, ErrInvalidBotConfig) {
+					t.Fatalf("New() error = %v, want %v", err, ErrInvalidBotConfig)
+				}
+
+				return
+			}
+			if err != nil {
+				t.Fatalf("New() error = %v", err)
+			}
+		})
+	}
+}
+
+func TestWebhookHandlerRejectsMissingSecret(t *testing.T) {
+	t.Parallel()
+
+	var handlerError error
+	bot, err := New(
+		testBotToken,
+		WithSkipIdentityCheck(),
+		WithWebhook("webhook-secret"),
+		WithErrorHandler(func(err error) {
+			handlerError = err
+		}),
+	)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	request := httptest.NewRequest(http.MethodPost, "/telegram", strings.NewReader(`{"update_id":42}`))
+	response := httptest.NewRecorder()
+	bot.WebhookHandler().ServeHTTP(response, request)
+
+	if handlerError == nil || !strings.Contains(handlerError.Error(), "invalid webhook secret token") {
+		t.Fatalf("WebhookHandler() error = %v, want invalid webhook secret token", handlerError)
 	}
 }
 

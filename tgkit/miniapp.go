@@ -32,6 +32,12 @@ const (
 	MiniAppModeCompact MiniAppMode = "compact"
 )
 
+const (
+	minBotUsernameLength = 5
+	maxBotUsernameLength = 32
+	botUsernameSuffix    = "bot"
+)
+
 // MiniApp provides launch controls and Bot API operations for a Telegram Mini
 // App.
 type MiniApp struct {
@@ -163,8 +169,9 @@ func (a *MiniApp) AnswerQuery(
 	return message, nil
 }
 
-// MiniAppLink builds a t.me direct link for a main or named Mini App. Leave
-// shortName empty to link to the bot's main Mini App.
+// MiniAppLink builds a t.me direct link for a main or named Mini App. The bot
+// username must contain 5-32 ASCII letters, digits, or underscores and end in
+// "bot". Leave shortName empty to link to the bot's main Mini App.
 func MiniAppLink(
 	botUsername string,
 	shortName string,
@@ -172,7 +179,7 @@ func MiniAppLink(
 	mode MiniAppMode,
 ) (string, error) {
 	username := strings.TrimPrefix(strings.TrimSpace(botUsername), "@")
-	if !validTelegramName(username) {
+	if !validBotUsername(username) {
 		return "", fmt.Errorf("%w: invalid bot username", ErrInvalidMiniApp)
 	}
 
@@ -222,8 +229,9 @@ func validateMiniAppURL(rawURL string) error {
 	return nil
 }
 
-func validTelegramName(value string) bool {
-	if value == "" {
+func validBotUsername(value string) bool {
+	if len(value) < minBotUsernameLength || len(value) > maxBotUsernameLength ||
+		!strings.EqualFold(value[len(value)-len(botUsernameSuffix):], botUsernameSuffix) {
 		return false
 	}
 

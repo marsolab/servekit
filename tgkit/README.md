@@ -63,6 +63,10 @@ _, err = bot.SetWebhook(ctx, &telegram.SetWebhookParams{
 })
 ```
 
+`WithWebhook` rejects empty or malformed secrets. Use the same 1-256 character
+token, containing only ASCII letters, digits, `_`, or `-`, when registering the
+webhook with Telegram.
+
 The embedded `*bot.Bot` exposes handler registration and the complete Bot API,
 so new or uncommon Telegram methods remain available without waiting for a
 `tgkit` wrapper.
