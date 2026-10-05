@@ -16,7 +16,7 @@ require (
 	github.com/jackc/pgconn v1.14.3
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/jackc/tern/v2 v2.4.3
-	github.com/lmittmann/tint v1.2.0
+	github.com/lmittmann/tint v1.2.1
 	github.com/mattn/go-sqlite3 v1.14.52
 	github.com/maxatome/go-testdeep v1.15.0
 	github.com/oklog/ulid/v2 v2.1.2
