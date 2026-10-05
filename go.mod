@@ -4,7 +4,7 @@ go 1.26.0
 
 require (
 	github.com/ClickHouse/clickhouse-go/v2 v2.48.0
-	github.com/VictoriaMetrics/metrics v1.44.0
+	github.com/VictoriaMetrics/metrics v1.44.1
 	github.com/benbjohnson/litestream v0.5.17
 	github.com/cep21/circuit/v3 v3.2.2
 	github.com/cristalhq/jwt/v5 v5.4.0
